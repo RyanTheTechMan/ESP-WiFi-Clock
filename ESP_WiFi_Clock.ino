@@ -19,6 +19,8 @@ unsigned long blinkInterval = 0;
 unsigned long lastBlink = 0;
 boolean isReady = false; //If the system is ready to run main loop
 boolean triedConnectingToWifi = false;
+boolean wifiPortalRunning = false;
+boolean clientIsConnected = true;
 
 // — Global Parameters —
 
@@ -42,16 +44,14 @@ void setup() {
   Serial.begin(115200); //Opens serial connection for debugging
   delay(1000);
   Serial.println();
-  
+
   // — Set SSID —
-  String mac = String(WiFi.macAddress());
+  String mac = WiFi.macAddress();
   mac.replace(":", "");
-  esp_ssid = ("ESP Clock " + mac.substring(6)); //Idk why this doesnt work
-  
-  int ssid_len = esp_ssid.length()+1;
-  char essid[ssid_len];
-  esp_ssid.toCharArray(essid, ssid_len);
-  ESPWifiSSID = essid;
+  esp_ssid = ("ESP Clock - " + mac.substring(6, 12));
+
+  ESPWifiSSID = new char[esp_ssid.length() + 1];
+  strcpy(ESPWifiSSID, esp_ssid.c_str());
 
   // — Setup EEPROM —
   EEPROM.begin(512);
@@ -61,7 +61,7 @@ void setup() {
   pinMode(MODE_PIN, INPUT);
   pinMode(LED_BUILTIN, OUTPUT);
 
-  WiFi.mode(WIFI_STA); //Sets WiFi Mode to STA+AP
+  wifiManager.setHostname(ESPWifiSSID); //TODO: may not be needed
 
   /*Serial.println("WL_CONNECTED" + String(WL_CONNECTED));
     Serial.println("WL_NO_SHIELD" + String(WL_NO_SHIELD));
@@ -108,9 +108,13 @@ void loop() {
     if (modeChangePinHoldTime > 5000) {
       modeChangePinHoldTime = 0;
       blinkInterval = 0;
-      lastBlink = millis(); //make an easier startBlink() function
       wifiManager.resetSettings();
       Serial.println("WiFi Settings have been reset!");
+
+      if (currentMode != MODE_WIFI_SETUP) {
+        EEPROM.write(EEPROM_Mode, MODE_WIFI_SETUP);
+        EEPROM.commit();
+      }
 
       Serial.println("Restarting!");
       Serial.println("Restarting!");
@@ -136,14 +140,15 @@ void loop() {
 
       if (wifiManager.getWiFiSSID() == "") {
         Serial.println("Network SSID is INVALID. Switching to setup mode!");
-        delay(2000);
+        delay(2000); //TODO: Remove this
         EEPROM.write(EEPROM_Mode, MODE_WIFI_SETUP);
-        delay(10000);
+        EEPROM.commit();
+        ESP.restart();
       }
       else if (WiFi.status() == WL_IDLE_STATUS) {
         if (triedConnectingToWifi) {
           Serial.println("I guess the network was not found????");
-          delay(10000);
+          delay(1000); //TODO: Remove this
         }
         else {
           Serial.println("Starting to connect to network: " + wifiManager.getWiFiSSID());
@@ -167,43 +172,80 @@ void loop() {
     }
     else if (currentMode == MODE_SETTINGS) {
       //Serial.println(">>> Starting in mode: SETTINGS");
-      Serial.print("Starting HTTP Server");
-      WiFi.softAP("ESP Clock - Settings"); //Starts hosted directly on ESP
+      Serial.println("Starting HTTP Server");
+      WiFi.mode(WIFI_AP);
+      WiFi.softAP(ESPWifiSSID); //Starts hosted directly on ESP
+      delay(500); //A small pause to allow WiFi chip to fully start
+      WiFi.softAPConfig(IPAddress(192,168,1,1), IPAddress(192,168,1,1), IPAddress(255,255,255,0)); //Not being set for some reason...
 
-      delay(100); //A small pause to allow WiFi chip to fully start
+      delay(500); //A small pause to allow WiFi chip to fully start
 
       server.on("/", handle_OnConnect);
       server.onNotFound(handle_NotFound);
 
       server.begin(); //Run host and allow clients to view website
-      Serial.println("HTTP Server Started!");
+      Serial.print("HTTP Server Started on: "); Serial.println(WiFi.softAPIP());
 
       if (MDNS.begin("clock")) { //Start the mDNS responder for clock.local
         Serial.println("mDNS responder started");
         MDNS.addService("http", "tcp", 80);
       } else {
-        Serial.println("Error setting up MDNS responder! Connect using: ");
-        Serial.print(WiFi.localIP());
+        Serial.print("Error setting up MDNS responder! Connect using: ");
+        Serial.println(WiFi.softAPIP());
       }
 
       isReady = true;
     } //else WiFi.begin(ssid, password); //Shows website on connected network //MOST LIKELY NOT NEEDED!!
     else if (currentMode == MODE_WIFI_SETUP) {
-      if (!wifiManager.process()){
-        Serial.println("Starting portal");
+      if (wifiPortalRunning) {
+        MDNS.update();
+        if (wifiManager.process()) { //True when saved
+          Serial.println("WiFi Config Finished");
+
+          EEPROM.write(EEPROM_Mode, MODE_SETTINGS);
+          EEPROM.commit();
+
+          Serial.println("Clock Mode Saved!");
+
+          wifiManager.stopConfigPortal(); //TODO: Is this a crash or a shutdown???
+        }
+      }
+
+      if (!wifiPortalRunning) {
+        WiFi.mode(WIFI_STA); //Sets WiFi Mode to STA+AP
+        Serial.println("Starting WIFI Config Portal");
+        wifiManager.setConfigPortalBlocking(false);
         wifiManager.startConfigPortal(ESPWifiSSID);
+        wifiPortalRunning = true;
+
+        if (MDNS.begin("clock")) { //Start the mDNS responder for clock.local
+          Serial.println("mDNS responder started");
+          MDNS.addService("http", "tcp", 80);
+        } else {
+          Serial.println("Error setting up MDNS responder! Connect using: ");
+          Serial.print(WiFi.localIP());
+        }
       }
-      else {
-        Serial.println("Running... Waiting for finish.");
-      }
-      
-      //wifiManager.startWebPortal();
-      //wifiManager.autoConnect(ESPWifiSSID);
     }
   }
   else {
-    Serial.println("Everything is ready!!!");
-    delay(10000);
+    if (currentMode == MODE_SETTINGS) {
+      MDNS.update();
+      if (WiFi.softAPgetStationNum() == 0){
+        if (clientIsConnected) {
+          clientIsConnected = false;
+          blinkInterval = 250;
+        }
+      }
+      else {
+        if (!clientIsConnected) {
+          clientIsConnected = true;
+          blinkInterval = 1000;
+          LEDOn();
+        }
+      }
+    }
+    //Serial.println("Everything is ready!!!");
   }
 }
 
@@ -258,3 +300,5 @@ void LEDOn() {
 void LEDOff() {
   digitalWrite(LED_BUILTIN,  LOW);
 }
+
+//TODO: wifiManager.setSaveConnect(false) to disable connect on save in config portal
