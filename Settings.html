@@ -5,40 +5,40 @@
 <title>ESP Clock - Settings</title>
 <style>
 html {
-	font-family: Helvetica;
-	display: inline-block;
-	margin: 0px auto;
-	text-align: center;
+    font-family: Helvetica;
+    display: inline-block;
+    margin: 0px auto;
+    text-align: center;
 }
 h1 {
-	color: #444444;
-	margin: 50px auto 30px;
+    color: #444444;
+    margin: 50px auto 30px;
 }
 h3 {
-	color: #444444;
-	margin-bottom: 50px;
+    color: #444444;
+    margin-bottom: 50px;
 }
 p {
-	font-size: 14px;
-	color: #888;
-	margin-bottom: 10px;
+    font-size: 14px;
+    color: #888;
+    margin-bottom: 10px;
 }
 input[type=text] {
-	padding: 5px;
-	border: 2px solid #ccc;
-	-webkit-border-radius: 5px;
-	border-radius: 5px;
+    padding: 5px;
+    border: 2px solid #ccc;
+    -webkit-border-radius: 5px;
+    border-radius: 5px;
 }
 input[type=text]:focus {
-	border-color: #333;
+    border-color: #333;
 }
 input[type=submit] {
-	padding: 5px 15px;
-	background: #ccc;
-	border: 0 none;
-	cursor: pointer;
-	-webkit-border-radius: 5px;
-	border-radius: 5px;
+    padding: 5px 15px;
+    background: #ccc;
+    border: 0 none;
+    cursor: pointer;
+    -webkit-border-radius: 5px;
+    border-radius: 5px;
 }
 </style>
 </head>
@@ -47,91 +47,48 @@ input[type=submit] {
 <h3>Settings</h3>
 <form action="/submit">
   <select name="timezone" id="tzone">
-    <option value="1" gmtAdjustment="GMT-12:00" useDaylightTime="0" gmt="-12">(GMT-12:00) International Date Line West</option>
-    <option value="2" gmtAdjustment="GMT-11:00" useDaylightTime="0" gmt="-11">(GMT-11:00) Midway Island, Samoa</option>
-    <option value="3" gmtAdjustment="GMT-10:00" useDaylightTime="0" gmt="-10">(GMT-10:00) Hawaii</option>
-    <option value="4" gmtAdjustment="GMT-09:00" useDaylightTime="1" gmt="-9">(GMT-09:00) Alaska</option>
-    <option value="5" gmtAdjustment="GMT-08:00" useDaylightTime="1" gmt="-8">(GMT-08:00) Pacific Time (US & Canada)</option>
-    <option value="6" gmtAdjustment="GMT-08:00" useDaylightTime="1" gmt="-8">(GMT-08:00) Tijuana, Baja California</option>
-    <option value="7" gmtAdjustment="GMT-07:00" useDaylightTime="0" gmt="-7">(GMT-07:00) Arizona</option>
-    <option value="8" gmtAdjustment="GMT-07:00" useDaylightTime="1" gmt="-7">(GMT-07:00) Chihuahua, La Paz, Mazatlan</option>
-    <option value="9" gmtAdjustment="GMT-07:00" useDaylightTime="1" gmt="-7">(GMT-07:00) Mountain Time (US & Canada)</option>
-    <option value="10" gmtAdjustment="GMT-06:00" useDaylightTime="0" gmt="-6">(GMT-06:00) Central America</option>
-    <option value="11" gmtAdjustment="GMT-06:00" useDaylightTime="1" gmt="-6">(GMT-06:00) Central Time (US & Canada)</option>
-    <option value="12" gmtAdjustment="GMT-06:00" useDaylightTime="1" gmt="-6">(GMT-06:00) Guadalajara, Mexico City, Monterrey</option>
-    <option value="13" gmtAdjustment="GMT-06:00" useDaylightTime="0" gmt="-6">(GMT-06:00) Saskatchewan</option>
-    <option value="14" gmtAdjustment="GMT-05:00" useDaylightTime="0" gmt="-5">(GMT-05:00) Bogota, Lima, Quito, Rio Branco</option>
-    <option value="15" gmtAdjustment="GMT-05:00" useDaylightTime="1" gmt="-5">(GMT-05:00) Eastern Time (US & Canada)</option>
-    <option value="16" gmtAdjustment="GMT-05:00" useDaylightTime="1" gmt="-5">(GMT-05:00) Indiana (East)</option>
-    <option value="17" gmtAdjustment="GMT-04:00" useDaylightTime="1" gmt="-4">(GMT-04:00) Atlantic Time (Canada)</option>
-    <option value="18" gmtAdjustment="GMT-04:00" useDaylightTime="0" gmt="-4">(GMT-04:00) Caracas, La Paz</option>
-    <option value="19" gmtAdjustment="GMT-04:00" useDaylightTime="0" gmt="-4">(GMT-04:00) Manaus</option>
-    <option value="20" gmtAdjustment="GMT-04:00" useDaylightTime="1" gmt="-4">(GMT-04:00) Santiago</option>
-    <option value="21" gmtAdjustment="GMT-03:30" useDaylightTime="1" gmt="-3.5">(GMT-03:30) Newfoundland</option>
-    <option value="22" gmtAdjustment="GMT-03:00" useDaylightTime="1" gmt="-3">(GMT-03:00) Brasilia</option>
-    <option value="23" gmtAdjustment="GMT-03:00" useDaylightTime="0" gmt="-3">(GMT-03:00) Buenos Aires, Georgetown</option>
-    <option value="24" gmtAdjustment="GMT-03:00" useDaylightTime="1" gmt="-3">(GMT-03:00) Greenland</option>
-    <option value="25" gmtAdjustment="GMT-03:00" useDaylightTime="1" gmt="-3">(GMT-03:00) Montevideo</option>
-    <option value="26" gmtAdjustment="GMT-02:00" useDaylightTime="1" gmt="-2">(GMT-02:00) Mid-Atlantic</option>
-    <option value="27" gmtAdjustment="GMT-01:00" useDaylightTime="0" gmt="-1">(GMT-01:00) Cape Verde Is.</option>
-    <option value="28" gmtAdjustment="GMT-01:00" useDaylightTime="1" gmt="-1">(GMT-01:00) Azores</option>
-    <option value="29" gmtAdjustment="GMT+00:00" useDaylightTime="0" gmt="0">(GMT+00:00) Casablanca, Monrovia, Reykjavik</option>
-    <option value="30" gmtAdjustment="GMT+00:00" useDaylightTime="1" gmt="0">(GMT+00:00) Greenwich Mean Time : Dublin, Edinburgh, Lisbon, London</option>
-    <option value="31" gmtAdjustment="GMT+01:00" useDaylightTime="1" gmt="1">(GMT+01:00) Amsterdam, Berlin, Bern, Rome, Stockholm, Vienna</option>
-    <option value="32" gmtAdjustment="GMT+01:00" useDaylightTime="1" gmt="1">(GMT+01:00) Belgrade, Bratislava, Budapest, Ljubljana, Prague</option>
-    <option value="33" gmtAdjustment="GMT+01:00" useDaylightTime="1" gmt="1">(GMT+01:00) Brussels, Copenhagen, Madrid, Paris</option>
-    <option value="34" gmtAdjustment="GMT+01:00" useDaylightTime="1" gmt="1">(GMT+01:00) Sarajevo, Skopje, Warsaw, Zagreb</option>
-    <option value="35" gmtAdjustment="GMT+01:00" useDaylightTime="1" gmt="1">(GMT+01:00) West Central Africa</option>
-    <option value="36" gmtAdjustment="GMT+02:00" useDaylightTime="1" gmt="2">(GMT+02:00) Amman</option>
-    <option value="37" gmtAdjustment="GMT+02:00" useDaylightTime="1" gmt="2">(GMT+02:00) Athens, Bucharest, Istanbul</option>
-    <option value="38" gmtAdjustment="GMT+02:00" useDaylightTime="1" gmt="2">(GMT+02:00) Beirut</option>
-    <option value="39" gmtAdjustment="GMT+02:00" useDaylightTime="1" gmt="2">(GMT+02:00) Cairo</option>
-    <option value="40" gmtAdjustment="GMT+02:00" useDaylightTime="0" gmt="2">(GMT+02:00) Harare, Pretoria</option>
-    <option value="41" gmtAdjustment="GMT+02:00" useDaylightTime="1" gmt="2">(GMT+02:00) Helsinki, Kyiv, Riga, Sofia, Tallinn, Vilnius</option>
-    <option value="42" gmtAdjustment="GMT+02:00" useDaylightTime="1" gmt="2">(GMT+02:00) Jerusalem</option>
-    <option value="43" gmtAdjustment="GMT+02:00" useDaylightTime="1" gmt="2">(GMT+02:00) Minsk</option>
-    <option value="44" gmtAdjustment="GMT+02:00" useDaylightTime="1" gmt="2">(GMT+02:00) Windhoek</option>
-    <option value="45" gmtAdjustment="GMT+03:00" useDaylightTime="0" gmt="3">(GMT+03:00) Kuwait, Riyadh, Baghdad</option>
-    <option value="46" gmtAdjustment="GMT+03:00" useDaylightTime="1" gmt="3">(GMT+03:00) Moscow, St. Petersburg, Volgograd</option>
-    <option value="47" gmtAdjustment="GMT+03:00" useDaylightTime="0" gmt="3">(GMT+03:00) Nairobi</option>
-    <option value="48" gmtAdjustment="GMT+03:00" useDaylightTime="0" gmt="3">(GMT+03:00) Tbilisi</option>
-    <option value="49" gmtAdjustment="GMT+03:30" useDaylightTime="1" gmt="3.5">(GMT+03:30) Tehran</option>
-    <option value="50" gmtAdjustment="GMT+04:00" useDaylightTime="0" gmt="4">(GMT+04:00) Abu Dhabi, Muscat</option>
-    <option value="51" gmtAdjustment="GMT+04:00" useDaylightTime="1" gmt="4">(GMT+04:00) Baku</option>
-    <option value="52" gmtAdjustment="GMT+04:00" useDaylightTime="1" gmt="4">(GMT+04:00) Yerevan</option>
-    <option value="53" gmtAdjustment="GMT+04:30" useDaylightTime="0" gmt="4.5">(GMT+04:30) Kabul</option>
-    <option value="54" gmtAdjustment="GMT+05:00" useDaylightTime="1" gmt="5">(GMT+05:00) Yekaterinburg</option>
-    <option value="55" gmtAdjustment="GMT+05:00" useDaylightTime="0" gmt="5">(GMT+05:00) Islamabad, Karachi, Tashkent</option>
-    <option value="56" gmtAdjustment="GMT+05:30" useDaylightTime="0" gmt="5.5">(GMT+05:30) Sri Jayawardenapura</option>
-    <option value="57" gmtAdjustment="GMT+05:30" useDaylightTime="0" gmt="5.5">(GMT+05:30) Chennai, Kolkata, Mumbai, New Delhi</option>
-    <option value="58" gmtAdjustment="GMT+05:45" useDaylightTime="0" gmt="5.75">(GMT+05:45) Kathmandu</option>
-    <option value="59" gmtAdjustment="GMT+06:00" useDaylightTime="1" gmt="6">(GMT+06:00) Almaty, Novosibirsk</option>
-    <option value="60" gmtAdjustment="GMT+06:00" useDaylightTime="0" gmt="6">(GMT+06:00) Astana, Dhaka</option>
-    <option value="61" gmtAdjustment="GMT+06:30" useDaylightTime="0" gmt="6.5">(GMT+06:30) Yangon (Rangoon)</option>
-    <option value="62" gmtAdjustment="GMT+07:00" useDaylightTime="0" gmt="7">(GMT+07:00) Bangkok, Hanoi, Jakarta</option>
-    <option value="63" gmtAdjustment="GMT+07:00" useDaylightTime="1" gmt="7">(GMT+07:00) Krasnoyarsk</option>
-    <option value="64" gmtAdjustment="GMT+08:00" useDaylightTime="0" gmt="8">(GMT+08:00) Beijing, Chongqing, Hong Kong, Urumqi</option>
-    <option value="65" gmtAdjustment="GMT+08:00" useDaylightTime="0" gmt="8">(GMT+08:00) Kuala Lumpur, Singapore</option>
-    <option value="66" gmtAdjustment="GMT+08:00" useDaylightTime="0" gmt="8">(GMT+08:00) Irkutsk, Ulaan Bataar</option>
-    <option value="67" gmtAdjustment="GMT+08:00" useDaylightTime="0" gmt="8">(GMT+08:00) Perth</option>
-    <option value="68" gmtAdjustment="GMT+08:00" useDaylightTime="0" gmt="8">(GMT+08:00) Taipei</option>
-    <option value="69" gmtAdjustment="GMT+09:00" useDaylightTime="0" gmt="9">(GMT+09:00) Osaka, Sapporo, Tokyo</option>
-    <option value="70" gmtAdjustment="GMT+09:00" useDaylightTime="0" gmt="9">(GMT+09:00) Seoul</option>
-    <option value="71" gmtAdjustment="GMT+09:00" useDaylightTime="1" gmt="9">(GMT+09:00) Yakutsk</option>
-    <option value="72" gmtAdjustment="GMT+09:30" useDaylightTime="0" gmt="9.5">(GMT+09:30) Adelaide</option>
-    <option value="73" gmtAdjustment="GMT+09:30" useDaylightTime="0" gmt="9.5">(GMT+09:30) Darwin</option>
-    <option value="74" gmtAdjustment="GMT+10:00" useDaylightTime="0" gmt="10">(GMT+10:00) Brisbane</option>
-    <option value="75" gmtAdjustment="GMT+10:00" useDaylightTime="1" gmt="10">(GMT+10:00) Canberra, Melbourne, Sydney</option>
-    <option value="76" gmtAdjustment="GMT+10:00" useDaylightTime="1" gmt="10">(GMT+10:00) Hobart</option>
-    <option value="77" gmtAdjustment="GMT+10:00" useDaylightTime="0" gmt="10">(GMT+10:00) Guam, Port Moresby</option>
-    <option value="78" gmtAdjustment="GMT+10:00" useDaylightTime="1" gmt="10">(GMT+10:00) Vladivostok</option>
-    <option value="79" gmtAdjustment="GMT+11:00" useDaylightTime="1" gmt="11">(GMT+11:00) Magadan, Solomon Is., New Caledonia</option>
-    <option value="80" gmtAdjustment="GMT+12:00" useDaylightTime="1" gmt="12">(GMT+12:00) Auckland, Wellington</option>
-    <option value="81" gmtAdjustment="GMT+12:00" useDaylightTime="0" gmt="12">(GMT+12:00) Fiji, Kamchatka, Marshall Is.</option>
-    <option value="82" gmtAdjustment="GMT+13:00" useDaylightTime="0" gmt="13">(GMT+13:00) Nuku'alofa</option>
+    <option value="none" selected disabled hidden>Select a Timezone</option>
+    <option value="1">(UTC-12:00) US Baker Island</option>
+    <option value="2">(UTC-11:00) America Samoa</option>
+    <option value="3">(UTC-10:00) Hawaii</option>
+    <option value="4">(UTC-9:30) French Polynesia</option>
+    <option value="5">(UTC-9:00) Alaska</option>
+    <option value="6">(UTC-8:00) Los Angeles</option>
+    <option value="7">(UTC-7:00) Denver, Colorado</option>
+    <option value="8">(UTC-7:00) US, Phoenix, Arizona</option>
+    <option value="9">(UTC-6:00) US, Chicago, Illinois</option>
+    <option value="10">(UTC-5:00) US, New York</option>
+    <option value="11">(UTC-3:00) Argentina</option>
+    <option value="12">(UTC-2:30) Newfoundland</option>
+    <option value="13">(UTC-2:00) Greenland</option>
+    <option value="14">(UTC-1:00) Cabo Verde</option>
+    <option value="15">(UTC+0:00) Iceland</option>
+    <option value="16">(UTC+1:00) UK</option>
+    <option value="17">(UTC+2:00) Germany</option>
+    <option value="18">(UTC+3:00) Greece</option>
+    <option value="19">(UTC+4:00) Azerbaijan</option>
+    <option value="20">(UTC+4:30) Iran</option>
+    <option value="21">(UTC+5:00) Pakistan</option>
+    <option value="22">(UTC+5:30) India</option>
+    <option value="23">(UTC+5:45) Nepal</option>
+    <option value="24">(UTC+6:00) Bangladesh</option>
+    <option value="25">(UTC+6:30) Myanmar</option>
+    <option value="26">(UTC+7:00) Indonesia</option>
+    <option value="27">(UTC+8:00) China</option>
+    <option value="28">(UTC+8:45) Western Australia</option>
+    <option value="29">(UTC+9:00) Japan</option>
+    <option value="30">(UTC+9:30) Central Australia</option>
+    <option value="31">(UTC+10:00) Eastern Australia</option>
+    <option value="32">(UTC+10:30) Lord Howe Island</option>
+    <option value="33">(UTC+11:00) Solomon Islands</option>
+    <option value="34">(UTC+12:00) New Zealand</option>
+    <option value="35">(UTC+12:45) Chatham Islands</option>
+    <option value="36">(UTC+13:00) Tonga</option>
+    <option value="37">(UTC+14:00) Christmas Island</option>
   </select>
   <p></p>
-  <input class="" type="submit" value="Save"></input>
+  <input class="" type="submit" value="Save">
+  </input>
 </form>
 </body>
 </html>
