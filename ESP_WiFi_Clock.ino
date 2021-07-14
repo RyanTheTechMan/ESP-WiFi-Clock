@@ -21,15 +21,16 @@ boolean isReady = false; //If the system is ready to run main loop
 boolean triedConnectingToWifi = false;
 boolean wifiPortalRunning = false;
 boolean clientIsConnected = true;
+unsigned long lastTimeMessageSent = 0;
 
 // — Global Parameters —
 //ID : GMT Offset, Has Daylight Savings //Increased by 1 so it lines up with website. 0,0 is added to lign up with website.
-const float timezones[83][2] = {{0,0},{-12,0},{-11,0},{-10,0},{-9,1},{-8,1},{-8,1},{-7,0},{-7,1},{-7,1},{-6,0},{-6,1},{-6,1},{-6,0},{-5,0},{-5,1},{-5,1},{-4,1},{-4,0},{-4,0},{-4,1},{-3.5,1},{-3,1},{-3,0},{-3,1},{-3,1},{-2,1},{-1,0},{-1,1},{0,0},{0,1},{1,1},{1,1},{1,1},{1,1},{1,1},{2,1},{2,1},{2,1},{2,1},{2,0},{2,1},{2,1},{2,1},{2,1},{3,0},{3,1},{3,0},{3,0},{3.5,1},{4,0},{4,1},{4,1},{4.5,0},{5,1},{5,0},{5.5,0},{5.5,0},{5.7,0},{6,1},{6,0},{6.5,0},{7,0},{7,1},{8,0},{8,0},{8,0},{8,0},{8,0},{9,0},{9,0},{9,1},{9.5,0},{9.5,0},{10,0},{10,1},{10,1},{10,0},{10,1},{11,1},{12,1},{12,0},{13,0}};
+const float timezones[83][2] = {{0, 0}, { -12, 0}, { -11, 0}, { -10, 0}, { -9, 1}, { -8, 1}, { -8, 1}, { -7, 0}, { -7, 1}, { -7, 1}, { -6, 0}, { -6, 1}, { -6, 1}, { -6, 0}, { -5, 0}, { -5, 1}, { -5, 1}, { -4, 1}, { -4, 0}, { -4, 0}, { -4, 1}, { -3.5, 1}, { -3, 1}, { -3, 0}, { -3, 1}, { -3, 1}, { -2, 1}, { -1, 0}, { -1, 1}, {0, 0}, {0, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {2, 1}, {2, 1}, {2, 1}, {2, 1}, {2, 0}, {2, 1}, {2, 1}, {2, 1}, {2, 1}, {3, 0}, {3, 1}, {3, 0}, {3, 0}, {3.5, 1}, {4, 0}, {4, 1}, {4, 1}, {4.5, 0}, {5, 1}, {5, 0}, {5.5, 0}, {5.5, 0}, {5.7, 0}, {6, 1}, {6, 0}, {6.5, 0}, {7, 0}, {7, 1}, {8, 0}, {8, 0}, {8, 0}, {8, 0}, {8, 0}, {9, 0}, {9, 0}, {9, 1}, {9.5, 0}, {9.5, 0}, {10, 0}, {10, 1}, {10, 1}, {10, 0}, {10, 1}, {11, 1}, {12, 1}, {12, 0}, {13, 0}};
 // — Network Parameters —
 ESP8266WebServer server(80); //Create instance of WebServer on port 80
 WiFiManager wifiManager; //Create isntance of WiFiManager
 WiFiUDP ntpUDP; //Opens a UDP Port
-NTPClient timeClient(ntpUDP, "pool.ntp.org", -18000); //Starts a NTPClient to get the time. //TODO: replace number and add/subtract based on timezone & DST
+NTPClient timeClient = NTPClient(ntpUDP, "pool.ntp.org"); //Creates a instance of NTPClient to get the time.
 char* ESPWifiSSID;
 String esp_ssid;
 
@@ -40,6 +41,7 @@ const short MODE_WIFI_SETUP = 2;
 
 // — Indexs of EEPROM Data —
 const short EEPROM_Mode = 0;
+const short EEPROM_TimeZone = 1;
 
 void setup() {
   Serial.begin(115200); //Opens serial connection for debugging
@@ -64,15 +66,15 @@ void setup() {
 
   //wifiManager.setHostname(ESPWifiSSID); //TODO: may not be needed
 
-  /*Serial.println("WL_CONNECTED" + String(WL_CONNECTED));
-    Serial.println("WL_NO_SHIELD" + String(WL_NO_SHIELD));
-    Serial.println("WL_IDLE_STATUS" + String(WL_IDLE_STATUS));
-    Serial.println("WL_NO_SSID_AVAIL" + String(WL_NO_SSID_AVAIL));
-    Serial.println("WL_SCAN_COMPLETED" + String(WL_SCAN_COMPLETED));
-    Serial.println("WL_CONNECT_FAILED" + String(WL_CONNECT_FAILED));
-    Serial.println("WL_CONNECTION_LOST" + String(WL_CONNECTION_LOST));
-    Serial.println("WL_DISCONNECTED" + String(WL_DISCONNECTED));
-  */
+  Serial.println("WL_CONNECTED" + String(WL_CONNECTED));
+  Serial.println("WL_NO_SHIELD" + String(WL_NO_SHIELD));
+  Serial.println("WL_IDLE_STATUS" + String(WL_IDLE_STATUS));
+  Serial.println("WL_NO_SSID_AVAIL" + String(WL_NO_SSID_AVAIL));
+  Serial.println("WL_SCAN_COMPLETED" + String(WL_SCAN_COMPLETED));
+  Serial.println("WL_CONNECT_FAILED" + String(WL_CONNECT_FAILED));
+  Serial.println("WL_CONNECTION_LOST" + String(WL_CONNECTION_LOST));
+  Serial.println("WL_DISCONNECTED" + String(WL_DISCONNECTED));
+
 
   //wifiManager.autoConnect(ESPWifiSSID);
 
@@ -138,7 +140,8 @@ void loop() {
   if (!isReady) {
     if (currentMode == MODE_NORMAL) {
       //Serial.println(">>> Starting in mode: NORMAL");
-
+      Serial.println(WiFi.status());
+      delay(150);
       if (wifiManager.getWiFiSSID() == "") {
         Serial.println("Network SSID is INVALID. Switching to setup mode!");
         delay(2000); //TODO: Remove this
@@ -147,16 +150,8 @@ void loop() {
         ESP.restart();
       }
       else if (WiFi.status() == WL_IDLE_STATUS) {
-        if (triedConnectingToWifi) {
-          Serial.println("I guess the network was not found????");
-          delay(1000); //TODO: Remove this
-        }
-        else {
-          Serial.println("Starting to connect to network: " + wifiManager.getWiFiSSID());
-          WiFi.begin(wifiManager.getWiFiSSID(), wifiManager.getWiFiPass());
-          triedConnectingToWifi = true;
-          delay(500); //Wait a moment to allow WiFi Module to start connecting
-        }
+        Serial.println("I guess the network was not found????");
+        delay(1000); //TODO: Remove this
       }
       else if (WiFi.status() == WL_CONNECTED) {
         LEDOn();
@@ -168,7 +163,16 @@ void loop() {
         isReady = true;
       }
       else if (WiFi.status() == WL_DISCONNECTED) {
-        Serial.println("Failed to connect???");
+        if (!triedConnectingToWifi) {
+          Serial.println("Starting to connect to network: " + wifiManager.getWiFiSSID());
+          WiFi.begin(wifiManager.getWiFiSSID(), wifiManager.getWiFiPass());
+          triedConnectingToWifi = true;
+          delay(250); //Wait a moment to allow WiFi Module to start connecting
+        }
+        /*else {
+          Serial.println("Failed to connect???");
+          delay(1000);
+        }*/
       }
     }
     else if (currentMode == MODE_SETTINGS) {
@@ -183,6 +187,7 @@ void loop() {
 
       server.on("/", handle_OnConnect);
       server.on("/submit", handle_Submit);
+      server.on("/restart", handle_SaveAndRestart);
       server.onNotFound(handle_NotFound);
 
       server.begin(); //Run host and allow clients to view website
@@ -197,7 +202,7 @@ void loop() {
       }
 
       isReady = true;
-    } //else WiFi.begin(ssid, password); //Shows website on connected network //MOST LIKELY NOT NEEDED!!
+    } //else WiFi.begin(ssid, password); //Shows website on connected network //TODO: MOST LIKELY NOT NEEDED!!
     else if (currentMode == MODE_WIFI_SETUP) {
       if (wifiPortalRunning) {
         MDNS.update();
@@ -248,6 +253,31 @@ void loop() {
         }
       }
     }
+    else if (currentMode == MODE_NORMAL) {
+      const long timeOffset = timezones[String(EEPROM.read(EEPROM_TimeZone)).toInt()][0];
+      const boolean dst = timezones[String(EEPROM.read(EEPROM_TimeZone)).toInt()][1];
+        
+      if (clientIsConnected) { //TODO: temp, remove  this whole if statement
+        Serial.println("Normal mode!!! TimeZone: " + String(EEPROM.read(EEPROM_TimeZone)));
+        Serial.print("Time Offset: "); Serial.println(timeOffset*3600);
+        Serial.print("DST enabled: ");Serial.println(dst);
+        clientIsConnected = false;
+         timeClient = NTPClient(ntpUDP, "pool.ntp.org", timeOffset*3600);
+      }
+      timeClient.update();
+
+      if (millis() - lastTimeMessageSent > 5000) {
+        lastTimeMessageSent = millis();
+
+        Serial.print("Epoch Time: "); Serial.println(timeClient.getEpochTime());
+        
+        Serial.print(timeClient.getHours());
+        Serial.print(":");
+        Serial.print(timeClient.getMinutes());
+        Serial.print(":");
+        Serial.println(timeClient.getSeconds());
+      }
+    }
     //Serial.println("Everything is ready!!!");
   }
 }
@@ -256,11 +286,24 @@ void handle_OnConnect() {
   server.send(200, "text/html", HTML_Main());
 }
 
+void handle_SaveAndRestart() {
+  EEPROM.write(EEPROM_Mode, MODE_NORMAL);
+  EEPROM.commit();
+
+  server.send(200, "text/html", "Restarting...");
+  delay(1000);
+
+  ESP.restart();
+}
+
 void handle_Submit() {
   String timezone = server.arg("timezone");
 
   Serial.print("Timezone Selected: ");
   Serial.println(timezone);
+
+  EEPROM.write(EEPROM_TimeZone, timezone.toInt());
+  EEPROM.commit();
 
   server.send(200, "text/html", HTML_Submit());
 }
@@ -271,236 +314,234 @@ void handle_NotFound() {
 
 String HTML_Main() {
   return (
-    "<!doctype html>\n"
-"<html>\n"
-"<head>\n"
-"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n"
-"<title>ESP Clock - Settings</title>\n"
-"<style>\n"
-"html {\n"
-" font-family: Helvetica;\n"
-" display: inline-block;\n"
-" margin: 0px auto;\n"
-" text-align: center;\n"
-"}\n"
-"h1 {\n"
-" color: #444444;\n"
-" margin: 50px auto 30px;\n"
-"}\n"
-"h3 {\n"
-" color: #444444;\n"
-" margin-bottom: 50px;\n"
-"}\n"
-"p {\n"
-" font-size: 14px;\n"
-" color: #888;\n"
-" margin-bottom: 10px;\n"
-"}\n"
-"input[type=text] {\n"
-" padding: 5px;\n"
-" border: 2px solid #ccc;\n"
-" -webkit-border-radius: 5px;\n"
-" border-radius: 5px;\n"
-"}\n"
-"input[type=text]:focus {\n"
-" border-color: #333;\n"
-"}\n"
-"input[type=submit] {\n"
-" padding: 5px 15px;\n"
-" background: #ccc;\n"
-" border: 0 none;\n"
-" cursor: pointer;\n"
-" -webkit-border-radius: 5px;\n"
-" border-radius: 5px;\n"
-"}\n"
-"</style>\n"
-"</head>\n"
-"<body>\n"
-"<h1>ESP Clock</h1>\n"
-"<h3>Settings</h3>\n"
-"<form action=\"/submit\">\n"
-"  <select name=\"timezone\" id=\"tzone\">\n"
-"    <option value=\"1\" >(GMT-12:00) International Date Line West</option>\n"
-"    <option value=\"2\" >(GMT-11:00) Midway Island, Samoa</option>\n"
-"    <option value=\"3\" >(GMT-10:00) Hawaii</option>\n"
-"    <option value=\"4\" >(GMT-09:00) Alaska</option>\n"
-"    <option value=\"5\" >(GMT-08:00) Pacific Time (US & Canada)</option>\n"
-"    <option value=\"6\" >(GMT-08:00) Tijuana, Baja California</option>\n"
-"    <option value=\"7\" >(GMT-07:00) Arizona</option>\n"
-"    <option value=\"8\" >(GMT-07:00) Chihuahua, La Paz, Mazatlan</option>\n"
-"    <option value=\"9\" >(GMT-07:00) Mountain Time (US & Canada)</option>\n"
-"    <option value=\"10\">(GMT-06:00) Central America</option>\n"
-"    <option value=\"11\">(GMT-06:00) Central Time (US & Canada)</option>\n"
-"    <option value=\"12\">(GMT-06:00) Guadalajara, Mexico City, Monterrey</option>\n"
-"    <option value=\"13\">(GMT-06:00) Saskatchewan</option>\n"
-"    <option value=\"14\">(GMT-05:00) Bogota, Lima, Quito, Rio Branco</option>\n"
-"    <option value=\"15\">(GMT-05:00) Eastern Time (US & Canada)</option>\n"
-"    <option value=\"16\">(GMT-05:00) Indiana (East)</option>\n"
-"    <option value=\"17\">(GMT-04:00) Atlantic Time (Canada)</option>\n"
-"    <option value=\"18\">(GMT-04:00) Caracas, La Paz</option>\n"
-"    <option value=\"19\">(GMT-04:00) Manaus</option>\n"
-"    <option value=\"20\">(GMT-04:00) Santiago</option>\n"
-"    <option value=\"21\">(GMT-03:30) Newfoundland</option>\n"
-"    <option value=\"22\">(GMT-03:00) Brasilia</option>\n"
-"    <option value=\"23\">(GMT-03:00) Buenos Aires, Georgetown</option>\n"
-"    <option value=\"24\">(GMT-03:00) Greenland</option>\n"
-"    <option value=\"25\">(GMT-03:00) Montevideo</option>\n"
-"    <option value=\"26\">(GMT-02:00) Mid-Atlantic</option>\n"
-"    <option value=\"27\">(GMT-01:00) Cape Verde Is.</option>\n"
-"    <option value=\"28\">(GMT-01:00) Azores</option>\n"
-"    <option value=\"29\">(GMT+00:00) Casablanca, Monrovia, Reykjavik</option>\n"
-"    <option value=\"30\">(GMT+00:00) Greenwich Mean Time : Dublin, Edinburgh, Lisbon, London</option>\n"
-"    <option value=\"31\">(GMT+01:00) Amsterdam, Berlin, Bern, Rome, Stockholm, Vienna</option>\n"
-"    <option value=\"32\">(GMT+01:00) Belgrade, Bratislava, Budapest, Ljubljana, Prague</option>\n"
-"    <option value=\"33\">(GMT+01:00) Brussels, Copenhagen, Madrid, Paris</option>\n"
-"    <option value=\"34\">(GMT+01:00) Sarajevo, Skopje, Warsaw, Zagreb</option>\n"
-"    <option value=\"35\">(GMT+01:00) West Central Africa</option>\n"
-"    <option value=\"36\">(GMT+02:00) Amman</option>\n"
-"    <option value=\"37\">(GMT+02:00) Athens, Bucharest, Istanbul</option>\n"
-"    <option value=\"38\">(GMT+02:00) Beirut</option>\n"
-"    <option value=\"39\">(GMT+02:00) Cairo</option>\n"
-"    <option value=\"40\">(GMT+02:00) Harare, Pretoria</option>\n"
-"    <option value=\"41\">(GMT+02:00) Helsinki, Kyiv, Riga, Sofia, Tallinn, Vilnius</option>\n"
-"    <option value=\"42\">(GMT+02:00) Jerusalem</option>\n"
-"    <option value=\"43\">(GMT+02:00) Minsk</option>\n"
-"    <option value=\"44\">(GMT+02:00) Windhoek</option>\n"
-"    <option value=\"45\">(GMT+03:00) Kuwait, Riyadh, Baghdad</option>\n"
-"    <option value=\"46\">(GMT+03:00) Moscow, St. Petersburg, Volgograd</option>\n"
-"    <option value=\"47\">(GMT+03:00) Nairobi</option>\n"
-"    <option value=\"48\">(GMT+03:00) Tbilisi</option>\n"
-"    <option value=\"49\">(GMT+03:30) Tehran</option>\n"
-"    <option value=\"50\">(GMT+04:00) Abu Dhabi, Muscat</option>\n"
-"    <option value=\"51\">(GMT+04:00) Baku</option>\n"
-"    <option value=\"52\">(GMT+04:00) Yerevan</option>\n"
-"    <option value=\"53\">(GMT+04:30) Kabul</option>\n"
-"    <option value=\"54\">(GMT+05:00) Yekaterinburg</option>\n"
-"    <option value=\"55\">(GMT+05:00) Islamabad, Karachi, Tashkent</option>\n"
-"    <option value=\"56\">(GMT+05:30) Sri Jayawardenapura</option>\n"
-"    <option value=\"57\">(GMT+05:30) Chennai, Kolkata, Mumbai, New Delhi</option>\n"
-"    <option value=\"58\">(GMT+05:45) Kathmandu</option>\n"
-"    <option value=\"59\">(GMT+06:00) Almaty, Novosibirsk</option>\n"
-"    <option value=\"60\">(GMT+06:00) Astana, Dhaka</option>\n"
-"    <option value=\"61\">(GMT+06:30) Yangon (Rangoon)</option>\n"
-"    <option value=\"62\">(GMT+07:00) Bangkok, Hanoi, Jakarta</option>\n"
-"    <option value=\"63\">(GMT+07:00) Krasnoyarsk</option>\n"
-"    <option value=\"64\">(GMT+08:00) Beijing, Chongqing, Hong Kong, Urumqi</option>\n"
-"    <option value=\"65\">(GMT+08:00) Kuala Lumpur, Singapore</option>\n"
-"    <option value=\"66\">(GMT+08:00) Irkutsk, Ulaan Bataar</option>\n"
-"    <option value=\"67\">(GMT+08:00) Perth</option>\n"
-"    <option value=\"68\">(GMT+08:00) Taipei</option>\n"
-"    <option value=\"69\">(GMT+09:00) Osaka, Sapporo, Tokyo</option>\n"
-"    <option value=\"70\">(GMT+09:00) Seoul</option>\n"
-"    <option value=\"71\">(GMT+09:00) Yakutsk</option>\n"
-"    <option value=\"72\">(GMT+09:30) Adelaide</option>\n"
-"    <option value=\"73\">(GMT+09:30) Darwin</option>\n"
-"    <option value=\"74\">(GMT+10:00) Brisbane</option>\n"
-"    <option value=\"75\">(GMT+10:00) Canberra, Melbourne, Sydney</option>\n"
-"    <option value=\"76\">(GMT+10:00) Hobart</option>\n"
-"    <option value=\"77\">(GMT+10:00) Guam, Port Moresby</option>\n"
-"    <option value=\"78\">(GMT+10:00) Vladivostok</option>\n"
-"    <option value=\"79\">(GMT+11:00) Magadan, Solomon Is., New Caledonia</option>\n"
-"    <option value=\"80\">(GMT+12:00) Auckland, Wellington</option>\n"
-"    <option value=\"81\">(GMT+12:00) Fiji, Kamchatka, Marshall Is.</option>\n"
-"    <option value=\"82\">(GMT+13:00) Nuku'alofa</option>\n"
-"  </select>\n"
-"  <p></p>\n"
-"  <input class=\"\" type=\"submit\" value=\"Save\"></input>\n"
-"</form>\n"
-"</body>\n"
-"</html>"
-    );
+           "<!doctype html>\n"
+           "<html>\n"
+           "<head>\n"
+           "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n"
+           "<title>ESP Clock - Settings</title>\n"
+           "<style>\n"
+           "html {\n"
+           " font-family: Helvetica;\n"
+           " display: inline-block;\n"
+           " margin: 0px auto;\n"
+           " text-align: center;\n"
+           "}\n"
+           "h1 {\n"
+           " color: #444444;\n"
+           " margin: 50px auto 30px;\n"
+           "}\n"
+           "h3 {\n"
+           " color: #444444;\n"
+           " margin-bottom: 50px;\n"
+           "}\n"
+           "p {\n"
+           " font-size: 14px;\n"
+           " color: #888;\n"
+           " margin-bottom: 10px;\n"
+           "}\n"
+           "input[type=text] {\n"
+           " padding: 5px;\n"
+           " border: 2px solid #ccc;\n"
+           " -webkit-border-radius: 5px;\n"
+           " border-radius: 5px;\n"
+           "}\n"
+           "input[type=text]:focus {\n"
+           " border-color: #333;\n"
+           "}\n"
+           "input[type=submit] {\n"
+           " padding: 5px 15px;\n"
+           " background: #ccc;\n"
+           " border: 0 none;\n"
+           " cursor: pointer;\n"
+           " -webkit-border-radius: 5px;\n"
+           " border-radius: 5px;\n"
+           "}\n"
+           "</style>\n"
+           "</head>\n"
+           "<body>\n"
+           "<h1>ESP Clock</h1>\n"
+           "<h3>Settings</h3>\n"
+           "<form action=\"/submit\">\n"
+           "  <select name=\"timezone\" id=\"tzone\">\n"
+           "    <option value=\"1\" >(GMT-12:00) International Date Line West</option>\n"
+           "    <option value=\"2\" >(GMT-11:00) Midway Island, Samoa</option>\n"
+           "    <option value=\"3\" >(GMT-10:00) Hawaii</option>\n"
+           "    <option value=\"4\" >(GMT-09:00) Alaska</option>\n"
+           "    <option value=\"5\" >(GMT-08:00) Pacific Time (US & Canada)</option>\n"
+           "    <option value=\"6\" >(GMT-08:00) Tijuana, Baja California</option>\n"
+           "    <option value=\"7\" >(GMT-07:00) Arizona</option>\n"
+           "    <option value=\"8\" >(GMT-07:00) Chihuahua, La Paz, Mazatlan</option>\n"
+           "    <option value=\"9\" >(GMT-07:00) Mountain Time (US & Canada)</option>\n"
+           "    <option value=\"10\">(GMT-06:00) Central America</option>\n"
+           "    <option value=\"11\">(GMT-06:00) Central Time (US & Canada)</option>\n"
+           "    <option value=\"12\">(GMT-06:00) Guadalajara, Mexico City, Monterrey</option>\n"
+           "    <option value=\"13\">(GMT-06:00) Saskatchewan</option>\n"
+           "    <option value=\"14\">(GMT-05:00) Bogota, Lima, Quito, Rio Branco</option>\n"
+           "    <option value=\"15\">(GMT-05:00) Eastern Time (US & Canada)</option>\n"
+           "    <option value=\"16\">(GMT-05:00) Indiana (East)</option>\n"
+           "    <option value=\"17\">(GMT-04:00) Atlantic Time (Canada)</option>\n"
+           "    <option value=\"18\">(GMT-04:00) Caracas, La Paz</option>\n"
+           "    <option value=\"19\">(GMT-04:00) Manaus</option>\n"
+           "    <option value=\"20\">(GMT-04:00) Santiago</option>\n"
+           "    <option value=\"21\">(GMT-03:30) Newfoundland</option>\n"
+           "    <option value=\"22\">(GMT-03:00) Brasilia</option>\n"
+           "    <option value=\"23\">(GMT-03:00) Buenos Aires, Georgetown</option>\n"
+           "    <option value=\"24\">(GMT-03:00) Greenland</option>\n"
+           "    <option value=\"25\">(GMT-03:00) Montevideo</option>\n"
+           "    <option value=\"26\">(GMT-02:00) Mid-Atlantic</option>\n"
+           "    <option value=\"27\">(GMT-01:00) Cape Verde Is.</option>\n"
+           "    <option value=\"28\">(GMT-01:00) Azores</option>\n"
+           "    <option value=\"29\">(GMT+00:00) Casablanca, Monrovia, Reykjavik</option>\n"
+           "    <option value=\"30\">(GMT+00:00) Greenwich Mean Time : Dublin, Edinburgh, Lisbon, London</option>\n"
+           "    <option value=\"31\">(GMT+01:00) Amsterdam, Berlin, Bern, Rome, Stockholm, Vienna</option>\n"
+           "    <option value=\"32\">(GMT+01:00) Belgrade, Bratislava, Budapest, Ljubljana, Prague</option>\n"
+           "    <option value=\"33\">(GMT+01:00) Brussels, Copenhagen, Madrid, Paris</option>\n"
+           "    <option value=\"34\">(GMT+01:00) Sarajevo, Skopje, Warsaw, Zagreb</option>\n"
+           "    <option value=\"35\">(GMT+01:00) West Central Africa</option>\n"
+           "    <option value=\"36\">(GMT+02:00) Amman</option>\n"
+           "    <option value=\"37\">(GMT+02:00) Athens, Bucharest, Istanbul</option>\n"
+           "    <option value=\"38\">(GMT+02:00) Beirut</option>\n"
+           "    <option value=\"39\">(GMT+02:00) Cairo</option>\n"
+           "    <option value=\"40\">(GMT+02:00) Harare, Pretoria</option>\n"
+           "    <option value=\"41\">(GMT+02:00) Helsinki, Kyiv, Riga, Sofia, Tallinn, Vilnius</option>\n"
+           "    <option value=\"42\">(GMT+02:00) Jerusalem</option>\n"
+           "    <option value=\"43\">(GMT+02:00) Minsk</option>\n"
+           "    <option value=\"44\">(GMT+02:00) Windhoek</option>\n"
+           "    <option value=\"45\">(GMT+03:00) Kuwait, Riyadh, Baghdad</option>\n"
+           "    <option value=\"46\">(GMT+03:00) Moscow, St. Petersburg, Volgograd</option>\n"
+           "    <option value=\"47\">(GMT+03:00) Nairobi</option>\n"
+           "    <option value=\"48\">(GMT+03:00) Tbilisi</option>\n"
+           "    <option value=\"49\">(GMT+03:30) Tehran</option>\n"
+           "    <option value=\"50\">(GMT+04:00) Abu Dhabi, Muscat</option>\n"
+           "    <option value=\"51\">(GMT+04:00) Baku</option>\n"
+           "    <option value=\"52\">(GMT+04:00) Yerevan</option>\n"
+           "    <option value=\"53\">(GMT+04:30) Kabul</option>\n"
+           "    <option value=\"54\">(GMT+05:00) Yekaterinburg</option>\n"
+           "    <option value=\"55\">(GMT+05:00) Islamabad, Karachi, Tashkent</option>\n"
+           "    <option value=\"56\">(GMT+05:30) Sri Jayawardenapura</option>\n"
+           "    <option value=\"57\">(GMT+05:30) Chennai, Kolkata, Mumbai, New Delhi</option>\n"
+           "    <option value=\"58\">(GMT+05:45) Kathmandu</option>\n"
+           "    <option value=\"59\">(GMT+06:00) Almaty, Novosibirsk</option>\n"
+           "    <option value=\"60\">(GMT+06:00) Astana, Dhaka</option>\n"
+           "    <option value=\"61\">(GMT+06:30) Yangon (Rangoon)</option>\n"
+           "    <option value=\"62\">(GMT+07:00) Bangkok, Hanoi, Jakarta</option>\n"
+           "    <option value=\"63\">(GMT+07:00) Krasnoyarsk</option>\n"
+           "    <option value=\"64\">(GMT+08:00) Beijing, Chongqing, Hong Kong, Urumqi</option>\n"
+           "    <option value=\"65\">(GMT+08:00) Kuala Lumpur, Singapore</option>\n"
+           "    <option value=\"66\">(GMT+08:00) Irkutsk, Ulaan Bataar</option>\n"
+           "    <option value=\"67\">(GMT+08:00) Perth</option>\n"
+           "    <option value=\"68\">(GMT+08:00) Taipei</option>\n"
+           "    <option value=\"69\">(GMT+09:00) Osaka, Sapporo, Tokyo</option>\n"
+           "    <option value=\"70\">(GMT+09:00) Seoul</option>\n"
+           "    <option value=\"71\">(GMT+09:00) Yakutsk</option>\n"
+           "    <option value=\"72\">(GMT+09:30) Adelaide</option>\n"
+           "    <option value=\"73\">(GMT+09:30) Darwin</option>\n"
+           "    <option value=\"74\">(GMT+10:00) Brisbane</option>\n"
+           "    <option value=\"75\">(GMT+10:00) Canberra, Melbourne, Sydney</option>\n"
+           "    <option value=\"76\">(GMT+10:00) Hobart</option>\n"
+           "    <option value=\"77\">(GMT+10:00) Guam, Port Moresby</option>\n"
+           "    <option value=\"78\">(GMT+10:00) Vladivostok</option>\n"
+           "    <option value=\"79\">(GMT+11:00) Magadan, Solomon Is., New Caledonia</option>\n"
+           "    <option value=\"80\">(GMT+12:00) Auckland, Wellington</option>\n"
+           "    <option value=\"81\">(GMT+12:00) Fiji, Kamchatka, Marshall Is.</option>\n"
+           "    <option value=\"82\">(GMT+13:00) Nuku'alofa</option>\n"
+           "  </select>\n"
+           "  <p></p>\n"
+           "  <input class=\"\" type=\"submit\" value=\"Save\"></input>\n"
+           "</form>\n"
+           "</body>\n"
+           "</html>"
+         );
 }
 
 String HTML_Submit() {
   return (
-    "<!doctype html>\n"
-"<html>\n"
-"<head>\n"
-"<style>\n"
-"body {\n"
-"  font-family: Helvetica;\n"
-" background-color: #81d4fa;\n"
-" font-weight: bold;\n"
-"}\n"
-".text-box {\n"
-" margin-left: 44vw;\n"
-" margin-top: 42vh;\n"
-"}\n"
-".btn:link, .btn:visited {\n"
-" text-transform: uppercase;\n"
-" text-decoration: none;\n"
-" padding: 15px 40px;\n"
-" display: inline-block;\n"
-" border-radius: 100px;\n"
-" transition: all .2s;\n"
-" position: absolute;\n"
-"}\n"
-".btn:hover {\n"
-" transform: translateY(-3px);\n"
-" box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);\n"
-"}\n"
-".btn:active {\n"
-" transform: translateY(-1px);\n"
-" box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);\n"
-"}\n"
-".btn-white {\n"
-" background-color: #fff;\n"
-" color: #000;\n"
-"}\n"
-".btn-red {\n"
-" background-color: #ff6f6b;\n"
-" color: #000;\n"
-"}\n"
-".btn::after {\n"
-" content: \"\";\n"
-" display: inline-block;\n"
-" height: 100%;\n"
-" width: 100%;\n"
-" border-radius: 100px;\n"
-" position: absolute;\n"
-" top: 0;\n"
-" left: 0;\n"
-" z-index: -1;\n"
-" transition: all .4s;\n"
-"}\n"
-".btn-white::after {\n"
-" background-color: #fff;\n"
-"}\n"
-".btn-red::after {\n"
-" background-color: #ff6f6b;\n"
-"}\n"
-".btn:hover::after {\n"
-" transform: scaleX(1.4) scaleY(1.6);\n"
-" opacity: 0;\n"
-"}\n"
-".btn-animated {\n"
-" animation: moveInBottom 5s ease-out;\n"
-" animation-fill-mode: backwards;\n"
-"}\n"
-"@keyframes moveInBottom {\n"
-"0% {\n"
-"opacity: 0;\n"
-"transform: translateY(30px);\n"
-"}\n"
-"100% {\n"
-"opacity: 1;\n"
-"transform: translateY(0px);\n"
-"}\n"
-"}\n"
-"</style>\n"
-"</head>\n"
-"<div class=\"text-box\">\n"
-"    <a href=\"/\" class=\"btn btn-white btn-animate\">Go Back</a>\n"
-" <br><br><br><br>\n"
-"    <a href=\"/restart\" class=\"btn btn-red btn-animate\">Restart</a>\n"
-"</div>\n"
-"<body>\n"
-"</body>\n"
-"</html>"
-    );
+           "<!doctype html>\n"
+           "<html>\n"
+           "<head>\n"
+           "<style>\n"
+           "body {\n"
+           "  font-family: Helvetica;\n"
+           " background-color: #81d4fa;\n"
+           " font-weight: bold;\n"
+           "}\n"
+           ".text-box {\n"
+           " margin-left: 44vw;\n"
+           " margin-top: 42vh;\n"
+           "}\n"
+           ".btn:link, .btn:visited {\n"
+           " text-transform: uppercase;\n"
+           " text-decoration: none;\n"
+           " padding: 15px 40px;\n"
+           " display: inline-block;\n"
+           " border-radius: 100px;\n"
+           " transition: all .2s;\n"
+           " position: absolute;\n"
+           "}\n"
+           ".btn:hover {\n"
+           " transform: translateY(-3px);\n"
+           " box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);\n"
+           "}\n"
+           ".btn:active {\n"
+           " transform: translateY(-1px);\n"
+           " box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);\n"
+           "}\n"
+           ".btn-white {\n"
+           " background-color: #fff;\n"
+           " color: #000;\n"
+           "}\n"
+           ".btn-red {\n"
+           " background-color: #ff6f6b;\n"
+           " color: #000;\n"
+           "}\n"
+           ".btn::after {\n"
+           " content: \"\";\n"
+           " display: inline-block;\n"
+           " height: 100%;\n"
+           " width: 100%;\n"
+           " border-radius: 100px;\n"
+           " position: absolute;\n"
+           " top: 0;\n"
+           " left: 0;\n"
+           " z-index: -1;\n"
+           " transition: all .4s;\n"
+           "}\n"
+           ".btn-white::after {\n"
+           " background-color: #fff;\n"
+           "}\n"
+           ".btn-red::after {\n"
+           " background-color: #ff6f6b;\n"
+           "}\n"
+           ".btn:hover::after {\n"
+           " transform: scaleX(1.4) scaleY(1.6);\n"
+           " opacity: 0;\n"
+           "}\n"
+           ".btn-animated {\n"
+           " animation: moveInBottom 5s ease-out;\n"
+           " animation-fill-mode: backwards;\n"
+           "}\n"
+           "@keyframes moveInBottom {\n"
+           "0% {\n"
+           "opacity: 0;\n"
+           "transform: translateY(30px);\n"
+           "}\n"
+           "100% {\n"
+           "opacity: 1;\n"
+           "transform: translateY(0px);\n"
+           "}\n"
+           "}\n"
+           "</style>\n"
+           "</head>\n"
+           "<div class=\"text-box\">\n"
+           "    <a href=\"/\" class=\"btn btn-white btn-animate\">Go Back</a>\n"
+           " <br><br><br><br>\n"
+           "    <a href=\"/restart\" class=\"btn btn-red btn-animate\">Restart</a>\n"
+           "</div>\n"
+           "<body>\n"
+           "</body>\n"
+           "</html>"
+         );
 }
-
-
 
 void LEDToggle() {
   digitalWrite(LED_BUILTIN,  !digitalRead(LED_BUILTIN));
