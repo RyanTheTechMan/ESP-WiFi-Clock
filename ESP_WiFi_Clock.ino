@@ -32,7 +32,7 @@ char* ESPWifiSSID;
 String esp_ssid;
 
 // — Time Parameters —
-const String timezones[] = {"","AOE12","NUT11","HST11HDT,M3.2.0/2:00:00,M11.1.0/2:00:00","MART9:30,M3.2.0/2:00:00,M11.1.0/2:00:00","ASKT9AKDT,M3.2.0/2:00:00,M11.1.0/2:00:00","PST8PDT,M3.2.0/2:00:00,M11.1.0/2:00:00","MST7MDT,M3.2.0/2:00:00,M11.1.0/2:00:00","MST7","CST6CDT,M3.2.0/2:00:00,M11.1.0/2:00:00","EST5EDT,M3.2.0/2:00:00,M11.1.0/2:00:00","ART3","NDT3:30NST,M3.2.0/2:00:00,M11.1.0/2:00:00","WGST3WGT,M3.2.0/2:00:00,M11.1.0/2:00:00","CVT1","GMT","0GMT,M3.2.0/2:00:00,M11.1.0/2:00:00","CEST-1CET,M3.2.0/2:00:00,M11.1.0/2:00:00","MSK-3","GST-4","RDT-3:30IRST,M3.2.0/2:00:00,M11.1.0/2:00:00","UZT-5","IST-5:30","NPT-5:45","BST-6","MMT-6:30","WIB-7","CST-8","ACWST-8:45","JST-9","ACST-8:30ACDT,M3.2.0/2:00:00,M11.1.0/2:00:00","AEST-9AEDT,M3.2.0/2:00:00,M11.1.0/2:00:00","LHST-9:30LHDT,M3.2.0/2:00:00,M11.1.0/2:00:00","SBT-11","ANAT-12","CHAST-11:45CHADT,M3.2.0/2:00:00,M11.1.0/2:00:00","TOT-12TOST,M3.2.0/2:00:00,M11.1.0/2:00:00","LINT-14"};
+const String timezones[] = {"", "AOE12", "NUT11", "HST11HDT,M3.2.0/2:00:00,M11.1.0/2:00:00", "MART9:30,M3.2.0/2:00:00,M11.1.0/2:00:00", "ASKT9AKDT,M3.2.0/2:00:00,M11.1.0/2:00:00", "PST8PDT,M3.2.0/2:00:00,M11.1.0/2:00:00", "MST7MDT,M3.2.0/2:00:00,M11.1.0/2:00:00", "MST7", "CST6CDT,M3.2.0/2:00:00,M11.1.0/2:00:00", "EST5EDT,M3.2.0/2:00:00,M11.1.0/2:00:00", "ART3", "NDT3:30NST,M3.2.0/2:00:00,M11.1.0/2:00:00", "WGST3WGT,M3.2.0/2:00:00,M11.1.0/2:00:00", "CVT1", "GMT", "0GMT,M3.2.0/2:00:00,M11.1.0/2:00:00", "CEST-1CET,M3.2.0/2:00:00,M11.1.0/2:00:00", "MSK-3", "GST-4", "RDT-3:30IRST,M3.2.0/2:00:00,M11.1.0/2:00:00", "UZT-5", "IST-5:30", "NPT-5:45", "BST-6", "MMT-6:30", "WIB-7", "CST-8", "ACWST-8:45", "JST-9", "ACST-8:30ACDT,M3.2.0/2:00:00,M11.1.0/2:00:00", "AEST-9AEDT,M3.2.0/2:00:00,M11.1.0/2:00:00", "LHST-9:30LHDT,M3.2.0/2:00:00,M11.1.0/2:00:00", "SBT-11", "ANAT-12", "CHAST-11:45CHADT,M3.2.0/2:00:00,M11.1.0/2:00:00", "TOT-12TOST,M3.2.0/2:00:00,M11.1.0/2:00:00", "LINT-14"};
 Timezone time_timezone;
 //WiFiUDP ntpUDP; //Opens a UDP Port
 //NTPClient timeClient = NTPClient(ntpUDP, "pool.ntp.org"); //Creates a instance of NTPClient to get the time.
@@ -88,7 +88,7 @@ void loop() {
     if (modeChangePinHoldTime > 10000) {
       blinkInterval = 100;
     }
-    else if (modeChangePinHoldTime > 3000){
+    else if (modeChangePinHoldTime > 3000) {
       blinkInterval = 250;
     }
   }
@@ -112,11 +112,11 @@ void loop() {
     else if (modeChangePinHoldTime > 3000) {
       modeChangePinHoldTime = 0;
       blinkInterval = 0;
-      
+
       if (currentMode != MODE_SETTINGS) {
         EEPROM.write(EEPROM_Mode, MODE_SETTINGS);
         EEPROM.commit();
-        
+
         Serial.println("Restarting!");
         Serial.println("Restarting!");
         Serial.println("Restarting!");
@@ -130,7 +130,7 @@ void loop() {
       modeChangePinHoldTime = 0;
       Serial.print("Current Mode in Code: "); Serial.println(currentMode);
       Serial.print("Current Mode in EEPROM: "); Serial.println(EEPROM.read(EEPROM_Mode));
-    }*/
+      }*/
   }
 
   if (!isReady) {
@@ -151,10 +151,10 @@ void loop() {
         LEDOffIn(5000);
         Serial.println();
         Serial.print("Got IP: ");  Serial.println(WiFi.localIP()); //Print IP that router gave client
-        
+
         const String timezone = timezones[String(EEPROM.read(EEPROM_TimeZone)).toInt()]; //Reads the timezone ID from the EEPROM and then get the Posix timezone code
         Serial.println("Normal mode!!! TimeZone (" + String(EEPROM.read(EEPROM_TimeZone)) + "): " + timezone);
-        
+
         time_timezone.setPosix(timezone); //Sets the timezone
         isReady = true;
       }
@@ -168,7 +168,7 @@ void loop() {
         /*else {
           Serial.println("Failed to connect???");
           delay(1000);
-        }*/
+          }*/
       }
     }
     else if (currentMode == MODE_SETTINGS) {
@@ -202,6 +202,21 @@ void loop() {
     else if (currentMode == MODE_WIFI_SETUP) {
       if (wifiPortalRunning) {
         MDNS.update();
+        
+        if (WiFi.softAPgetStationNum() == 0) {
+          if (clientIsConnected) {
+            clientIsConnected = false;
+            blinkInterval = 500;
+          }
+        }
+        else {
+          if (!clientIsConnected) {
+            clientIsConnected = true;
+            blinkInterval = 1500;
+            LEDOn();
+          }
+        }
+        
         if (wifiManager.process()) { //True when saved
           Serial.println("WiFi Config Finished");
 
@@ -238,13 +253,13 @@ void loop() {
       if (WiFi.softAPgetStationNum() == 0) {
         if (clientIsConnected) {
           clientIsConnected = false;
-          blinkInterval = 250;
+          blinkInterval = 500;
         }
       }
       else {
         if (!clientIsConnected) {
           clientIsConnected = true;
-          blinkInterval = 1000;
+          blinkInterval = 1500;
           LEDOn();
         }
       }
@@ -253,18 +268,18 @@ void loop() {
       events(); //Updates time
       if (timeStatus() != 0 && (millis() - lastTimeMessageSent > 1000)) {
         lastTimeMessageSent = millis();
-        
+
         Serial.println("Epoch Time: " + String(now()));
         /*
-        Serial.print(timeClient.getHours());
-        Serial.print(":");
-        Serial.print(timeClient.getMinutes());
-        Serial.print(":");
-        Serial.println(timeClient.getSeconds());
+          Serial.print(timeClient.getHours());
+          Serial.print(":");
+          Serial.print(timeClient.getMinutes());
+          Serial.print(":");
+          Serial.println(timeClient.getSeconds());
         */
 
         Serial.println(String(time_timezone.hourFormat12()) + ":" + String(time_timezone.minute()) + ":" + String(time_timezone.second()) + " " + String((time_timezone.isAM() ? "AM" : "PM")));
-        
+
       }
     }
     //Serial.println("Everything is ready!!!");
