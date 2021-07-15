@@ -1,16 +1,16 @@
-#include <NTPClient.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <WiFiUdp.h>
 #include <ESP8266mDNS.h>
 #include <WiFiManager.h>
 #include <EEPROM.h>
+#include <ezTime.h>
 
 // — Settings —
 const int MODE_PIN = 0; //Pin Used as trigger a mode change
 
 // — System Varibles — System will change the variables as it is running
-byte currentMode = 0; //TODO: Set to 0 in production
+byte currentMode = 0;
 unsigned long turnOffLightTime = 0;
 unsigned long modeChangePinHoldTime = 0;
 unsigned long currentTime = 0;
@@ -24,15 +24,18 @@ boolean clientIsConnected = true;
 unsigned long lastTimeMessageSent = 0;
 
 // — Global Parameters —
-//ID : GMT Offset, Has Daylight Savings //Increased by 1 so it lines up with website. 0,0 is added to lign up with website.
-const float timezones[83][2] = {{0, 0}, { -12, 0}, { -11, 0}, { -10, 0}, { -9, 1}, { -8, 1}, { -8, 1}, { -7, 0}, { -7, 1}, { -7, 1}, { -6, 0}, { -6, 1}, { -6, 1}, { -6, 0}, { -5, 0}, { -5, 1}, { -5, 1}, { -4, 1}, { -4, 0}, { -4, 0}, { -4, 1}, { -3.5, 1}, { -3, 1}, { -3, 0}, { -3, 1}, { -3, 1}, { -2, 1}, { -1, 0}, { -1, 1}, {0, 0}, {0, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, {2, 1}, {2, 1}, {2, 1}, {2, 1}, {2, 0}, {2, 1}, {2, 1}, {2, 1}, {2, 1}, {3, 0}, {3, 1}, {3, 0}, {3, 0}, {3.5, 1}, {4, 0}, {4, 1}, {4, 1}, {4.5, 0}, {5, 1}, {5, 0}, {5.5, 0}, {5.5, 0}, {5.7, 0}, {6, 1}, {6, 0}, {6.5, 0}, {7, 0}, {7, 1}, {8, 0}, {8, 0}, {8, 0}, {8, 0}, {8, 0}, {9, 0}, {9, 0}, {9, 1}, {9.5, 0}, {9.5, 0}, {10, 0}, {10, 1}, {10, 1}, {10, 0}, {10, 1}, {11, 1}, {12, 1}, {12, 0}, {13, 0}};
+
 // — Network Parameters —
 ESP8266WebServer server(80); //Create instance of WebServer on port 80
-WiFiManager wifiManager; //Create isntance of WiFiManager
-WiFiUDP ntpUDP; //Opens a UDP Port
-NTPClient timeClient = NTPClient(ntpUDP, "pool.ntp.org"); //Creates a instance of NTPClient to get the time.
+WiFiManager wifiManager; //Create instance of WiFiManager
 char* ESPWifiSSID;
 String esp_ssid;
+
+// — Time Parameters —
+const String timezones[] = {"","AOE12","NUT11","HST11HDT,M3.2.0/2:00:00,M11.1.0/2:00:00","MART9:30,M3.2.0/2:00:00,M11.1.0/2:00:00","ASKT9AKDT,M3.2.0/2:00:00,M11.1.0/2:00:00","PST8PDT,M3.2.0/2:00:00,M11.1.0/2:00:00","MST7MDT,M3.2.0/2:00:00,M11.1.0/2:00:00","MST7","CST6CDT,M3.2.0/2:00:00,M11.1.0/2:00:00","EST5EDT,M3.2.0/2:00:00,M11.1.0/2:00:00","ART3","NDT3:30NST,M3.2.0/2:00:00,M11.1.0/2:00:00","WGST3WGT,M3.2.0/2:00:00,M11.1.0/2:00:00","CVT1","GMT","0GMT,M3.2.0/2:00:00,M11.1.0/2:00:00","CEST-1CET,M3.2.0/2:00:00,M11.1.0/2:00:00","MSK-3","GST-4","RDT-3:30IRST,M3.2.0/2:00:00,M11.1.0/2:00:00","UZT-5","IST-5:30","NPT-5:45","BST-6","MMT-6:30","WIB-7","CST-8","ACWST-8:45","JST-9","ACST-8:30ACDT,M3.2.0/2:00:00,M11.1.0/2:00:00","AEST-9AEDT,M3.2.0/2:00:00,M11.1.0/2:00:00","LHST-9:30LHDT,M3.2.0/2:00:00,M11.1.0/2:00:00","SBT-11","ANAT-12","CHAST-11:45CHADT,M3.2.0/2:00:00,M11.1.0/2:00:00","TOT-12TOST,M3.2.0/2:00:00,M11.1.0/2:00:00","LINT-14"};
+Timezone time_timezone;
+//WiFiUDP ntpUDP; //Opens a UDP Port
+//NTPClient timeClient = NTPClient(ntpUDP, "pool.ntp.org"); //Creates a instance of NTPClient to get the time.
 
 // — System Modes —
 const short MODE_NORMAL     = 0;
@@ -63,27 +66,6 @@ void setup() {
   // — Setup Pins —
   pinMode(MODE_PIN, INPUT);
   pinMode(LED_BUILTIN, OUTPUT);
-
-  //wifiManager.setHostname(ESPWifiSSID); //TODO: may not be needed
-
-  Serial.println("WL_CONNECTED" + String(WL_CONNECTED));
-  Serial.println("WL_NO_SHIELD" + String(WL_NO_SHIELD));
-  Serial.println("WL_IDLE_STATUS" + String(WL_IDLE_STATUS));
-  Serial.println("WL_NO_SSID_AVAIL" + String(WL_NO_SSID_AVAIL));
-  Serial.println("WL_SCAN_COMPLETED" + String(WL_SCAN_COMPLETED));
-  Serial.println("WL_CONNECT_FAILED" + String(WL_CONNECT_FAILED));
-  Serial.println("WL_CONNECTION_LOST" + String(WL_CONNECTION_LOST));
-  Serial.println("WL_DISCONNECTED" + String(WL_DISCONNECTED));
-
-
-  //wifiManager.autoConnect(ESPWifiSSID);
-
-  /*WiFi.begin(wifiManager.getWiFiSSID(), wifiManager.getWiFiPass());
-    Serial.println("Connecting to WIFI: " + wifiManager.getWiFiSSID() + "\nWith password: " + wifiManager.getWiFiPass());
-    while (true){
-    Serial.println(WiFi.status());
-    delay(100);
-    }*/
 }
 
 void loop() {
@@ -103,12 +85,15 @@ void loop() {
 
   if (digitalRead(MODE_PIN) == LOW) {
     modeChangePinHoldTime += deltaTime;
-    if (modeChangePinHoldTime > 5000) {
+    if (modeChangePinHoldTime > 10000) {
+      blinkInterval = 100;
+    }
+    else if (modeChangePinHoldTime > 3000){
       blinkInterval = 250;
     }
   }
   else {
-    if (modeChangePinHoldTime > 5000) {
+    if (modeChangePinHoldTime > 10000) {
       modeChangePinHoldTime = 0;
       blinkInterval = 0;
       wifiManager.resetSettings();
@@ -124,27 +109,35 @@ void loop() {
       Serial.println("Restarting!");
       ESP.restart();
     }
-    else if (modeChangePinHoldTime > 1000) {
+    else if (modeChangePinHoldTime > 3000) {
       modeChangePinHoldTime = 0;
-      Serial.println("Set new EEPROM!");
-      EEPROM.write(EEPROM_Mode, 2);
-      EEPROM.commit();
+      blinkInterval = 0;
+      
+      if (currentMode != MODE_SETTINGS) {
+        EEPROM.write(EEPROM_Mode, MODE_SETTINGS);
+        EEPROM.commit();
+        
+        Serial.println("Restarting!");
+        Serial.println("Restarting!");
+        Serial.println("Restarting!");
+        ESP.restart();
+      }
+      else {
+        Serial.println("Already in settings.");
+      }
     }
-    else if (modeChangePinHoldTime > 200) {
+    /*else if (modeChangePinHoldTime > 200) {
       modeChangePinHoldTime = 0;
       Serial.print("Current Mode in Code: "); Serial.println(currentMode);
       Serial.print("Current Mode in EEPROM: "); Serial.println(EEPROM.read(EEPROM_Mode));
-    }
+    }*/
   }
 
   if (!isReady) {
     if (currentMode == MODE_NORMAL) {
       //Serial.println(">>> Starting in mode: NORMAL");
-      Serial.println(WiFi.status());
-      delay(150);
       if (wifiManager.getWiFiSSID() == "") {
         Serial.println("Network SSID is INVALID. Switching to setup mode!");
-        delay(2000); //TODO: Remove this
         EEPROM.write(EEPROM_Mode, MODE_WIFI_SETUP);
         EEPROM.commit();
         ESP.restart();
@@ -158,8 +151,11 @@ void loop() {
         LEDOffIn(5000);
         Serial.println();
         Serial.print("Got IP: ");  Serial.println(WiFi.localIP()); //Print IP that router gave client
-        timeClient.begin(); //Start keeping track of time
-        Serial.println("Time Client Started!");
+        
+        const String timezone = timezones[String(EEPROM.read(EEPROM_TimeZone)).toInt()]; //Reads the timezone ID from the EEPROM and then get the Posix timezone code
+        Serial.println("Normal mode!!! TimeZone (" + String(EEPROM.read(EEPROM_TimeZone)) + "): " + timezone);
+        
+        time_timezone.setPosix(timezone); //Sets the timezone
         isReady = true;
       }
       else if (WiFi.status() == WL_DISCONNECTED) {
@@ -202,7 +198,7 @@ void loop() {
       }
 
       isReady = true;
-    } //else WiFi.begin(ssid, password); //Shows website on connected network //TODO: MOST LIKELY NOT NEEDED!!
+    }
     else if (currentMode == MODE_WIFI_SETUP) {
       if (wifiPortalRunning) {
         MDNS.update();
@@ -214,7 +210,7 @@ void loop() {
 
           Serial.println("Clock Mode Saved!");
 
-          wifiManager.stopConfigPortal(); //TODO: Is this a crash or a shutdown???
+          wifiManager.stopConfigPortal(); //Restarts the ESP
         }
       }
 
@@ -254,28 +250,21 @@ void loop() {
       }
     }
     else if (currentMode == MODE_NORMAL) {
-      const long timeOffset = timezones[String(EEPROM.read(EEPROM_TimeZone)).toInt()][0];
-      const boolean dst = timezones[String(EEPROM.read(EEPROM_TimeZone)).toInt()][1];
-        
-      if (clientIsConnected) { //TODO: temp, remove  this whole if statement
-        Serial.println("Normal mode!!! TimeZone: " + String(EEPROM.read(EEPROM_TimeZone)));
-        Serial.print("Time Offset: "); Serial.println(timeOffset*3600);
-        Serial.print("DST enabled: ");Serial.println(dst);
-        clientIsConnected = false;
-         timeClient = NTPClient(ntpUDP, "pool.ntp.org", timeOffset*3600);
-      }
-      timeClient.update();
-
-      if (millis() - lastTimeMessageSent > 5000) {
+      events(); //Updates time
+      if (timeStatus() != 0 && (millis() - lastTimeMessageSent > 1000)) {
         lastTimeMessageSent = millis();
-
-        Serial.print("Epoch Time: "); Serial.println(timeClient.getEpochTime());
         
+        Serial.println("Epoch Time: " + String(now()));
+        /*
         Serial.print(timeClient.getHours());
         Serial.print(":");
         Serial.print(timeClient.getMinutes());
         Serial.print(":");
         Serial.println(timeClient.getSeconds());
+        */
+
+        Serial.println(String(time_timezone.hourFormat12()) + ":" + String(time_timezone.minute()) + ":" + String(time_timezone.second()) + " " + String((time_timezone.isAM() ? "AM" : "PM")));
+        
       }
     }
     //Serial.println("Everything is ready!!!");
@@ -363,88 +352,44 @@ String HTML_Main() {
            "<h3>Settings</h3>\n"
            "<form action=\"/submit\">\n"
            "  <select name=\"timezone\" id=\"tzone\">\n"
-           "    <option value=\"1\" >(GMT-12:00) International Date Line West</option>\n"
-           "    <option value=\"2\" >(GMT-11:00) Midway Island, Samoa</option>\n"
-           "    <option value=\"3\" >(GMT-10:00) Hawaii</option>\n"
-           "    <option value=\"4\" >(GMT-09:00) Alaska</option>\n"
-           "    <option value=\"5\" >(GMT-08:00) Pacific Time (US & Canada)</option>\n"
-           "    <option value=\"6\" >(GMT-08:00) Tijuana, Baja California</option>\n"
-           "    <option value=\"7\" >(GMT-07:00) Arizona</option>\n"
-           "    <option value=\"8\" >(GMT-07:00) Chihuahua, La Paz, Mazatlan</option>\n"
-           "    <option value=\"9\" >(GMT-07:00) Mountain Time (US & Canada)</option>\n"
-           "    <option value=\"10\">(GMT-06:00) Central America</option>\n"
-           "    <option value=\"11\">(GMT-06:00) Central Time (US & Canada)</option>\n"
-           "    <option value=\"12\">(GMT-06:00) Guadalajara, Mexico City, Monterrey</option>\n"
-           "    <option value=\"13\">(GMT-06:00) Saskatchewan</option>\n"
-           "    <option value=\"14\">(GMT-05:00) Bogota, Lima, Quito, Rio Branco</option>\n"
-           "    <option value=\"15\">(GMT-05:00) Eastern Time (US & Canada)</option>\n"
-           "    <option value=\"16\">(GMT-05:00) Indiana (East)</option>\n"
-           "    <option value=\"17\">(GMT-04:00) Atlantic Time (Canada)</option>\n"
-           "    <option value=\"18\">(GMT-04:00) Caracas, La Paz</option>\n"
-           "    <option value=\"19\">(GMT-04:00) Manaus</option>\n"
-           "    <option value=\"20\">(GMT-04:00) Santiago</option>\n"
-           "    <option value=\"21\">(GMT-03:30) Newfoundland</option>\n"
-           "    <option value=\"22\">(GMT-03:00) Brasilia</option>\n"
-           "    <option value=\"23\">(GMT-03:00) Buenos Aires, Georgetown</option>\n"
-           "    <option value=\"24\">(GMT-03:00) Greenland</option>\n"
-           "    <option value=\"25\">(GMT-03:00) Montevideo</option>\n"
-           "    <option value=\"26\">(GMT-02:00) Mid-Atlantic</option>\n"
-           "    <option value=\"27\">(GMT-01:00) Cape Verde Is.</option>\n"
-           "    <option value=\"28\">(GMT-01:00) Azores</option>\n"
-           "    <option value=\"29\">(GMT+00:00) Casablanca, Monrovia, Reykjavik</option>\n"
-           "    <option value=\"30\">(GMT+00:00) Greenwich Mean Time : Dublin, Edinburgh, Lisbon, London</option>\n"
-           "    <option value=\"31\">(GMT+01:00) Amsterdam, Berlin, Bern, Rome, Stockholm, Vienna</option>\n"
-           "    <option value=\"32\">(GMT+01:00) Belgrade, Bratislava, Budapest, Ljubljana, Prague</option>\n"
-           "    <option value=\"33\">(GMT+01:00) Brussels, Copenhagen, Madrid, Paris</option>\n"
-           "    <option value=\"34\">(GMT+01:00) Sarajevo, Skopje, Warsaw, Zagreb</option>\n"
-           "    <option value=\"35\">(GMT+01:00) West Central Africa</option>\n"
-           "    <option value=\"36\">(GMT+02:00) Amman</option>\n"
-           "    <option value=\"37\">(GMT+02:00) Athens, Bucharest, Istanbul</option>\n"
-           "    <option value=\"38\">(GMT+02:00) Beirut</option>\n"
-           "    <option value=\"39\">(GMT+02:00) Cairo</option>\n"
-           "    <option value=\"40\">(GMT+02:00) Harare, Pretoria</option>\n"
-           "    <option value=\"41\">(GMT+02:00) Helsinki, Kyiv, Riga, Sofia, Tallinn, Vilnius</option>\n"
-           "    <option value=\"42\">(GMT+02:00) Jerusalem</option>\n"
-           "    <option value=\"43\">(GMT+02:00) Minsk</option>\n"
-           "    <option value=\"44\">(GMT+02:00) Windhoek</option>\n"
-           "    <option value=\"45\">(GMT+03:00) Kuwait, Riyadh, Baghdad</option>\n"
-           "    <option value=\"46\">(GMT+03:00) Moscow, St. Petersburg, Volgograd</option>\n"
-           "    <option value=\"47\">(GMT+03:00) Nairobi</option>\n"
-           "    <option value=\"48\">(GMT+03:00) Tbilisi</option>\n"
-           "    <option value=\"49\">(GMT+03:30) Tehran</option>\n"
-           "    <option value=\"50\">(GMT+04:00) Abu Dhabi, Muscat</option>\n"
-           "    <option value=\"51\">(GMT+04:00) Baku</option>\n"
-           "    <option value=\"52\">(GMT+04:00) Yerevan</option>\n"
-           "    <option value=\"53\">(GMT+04:30) Kabul</option>\n"
-           "    <option value=\"54\">(GMT+05:00) Yekaterinburg</option>\n"
-           "    <option value=\"55\">(GMT+05:00) Islamabad, Karachi, Tashkent</option>\n"
-           "    <option value=\"56\">(GMT+05:30) Sri Jayawardenapura</option>\n"
-           "    <option value=\"57\">(GMT+05:30) Chennai, Kolkata, Mumbai, New Delhi</option>\n"
-           "    <option value=\"58\">(GMT+05:45) Kathmandu</option>\n"
-           "    <option value=\"59\">(GMT+06:00) Almaty, Novosibirsk</option>\n"
-           "    <option value=\"60\">(GMT+06:00) Astana, Dhaka</option>\n"
-           "    <option value=\"61\">(GMT+06:30) Yangon (Rangoon)</option>\n"
-           "    <option value=\"62\">(GMT+07:00) Bangkok, Hanoi, Jakarta</option>\n"
-           "    <option value=\"63\">(GMT+07:00) Krasnoyarsk</option>\n"
-           "    <option value=\"64\">(GMT+08:00) Beijing, Chongqing, Hong Kong, Urumqi</option>\n"
-           "    <option value=\"65\">(GMT+08:00) Kuala Lumpur, Singapore</option>\n"
-           "    <option value=\"66\">(GMT+08:00) Irkutsk, Ulaan Bataar</option>\n"
-           "    <option value=\"67\">(GMT+08:00) Perth</option>\n"
-           "    <option value=\"68\">(GMT+08:00) Taipei</option>\n"
-           "    <option value=\"69\">(GMT+09:00) Osaka, Sapporo, Tokyo</option>\n"
-           "    <option value=\"70\">(GMT+09:00) Seoul</option>\n"
-           "    <option value=\"71\">(GMT+09:00) Yakutsk</option>\n"
-           "    <option value=\"72\">(GMT+09:30) Adelaide</option>\n"
-           "    <option value=\"73\">(GMT+09:30) Darwin</option>\n"
-           "    <option value=\"74\">(GMT+10:00) Brisbane</option>\n"
-           "    <option value=\"75\">(GMT+10:00) Canberra, Melbourne, Sydney</option>\n"
-           "    <option value=\"76\">(GMT+10:00) Hobart</option>\n"
-           "    <option value=\"77\">(GMT+10:00) Guam, Port Moresby</option>\n"
-           "    <option value=\"78\">(GMT+10:00) Vladivostok</option>\n"
-           "    <option value=\"79\">(GMT+11:00) Magadan, Solomon Is., New Caledonia</option>\n"
-           "    <option value=\"80\">(GMT+12:00) Auckland, Wellington</option>\n"
-           "    <option value=\"81\">(GMT+12:00) Fiji, Kamchatka, Marshall Is.</option>\n"
-           "    <option value=\"82\">(GMT+13:00) Nuku'alofa</option>\n"
+           "<option value=\"none\" selected disabled hidden>Select a Timezone</option>\n"
+           "<option value=\"1\">(UTC-12:00) US Baker Island</option>\n"
+           "<option value=\"2\">(UTC-11:00) America Samoa</option>\n"
+           "<option value=\"3\">(UTC-10:00) Hawaii</option>\n"
+           "<option value=\"4\">(UTC-9:30) French Polynesia</option>\n"
+           "<option value=\"5\">(UTC-9:00) Alaska</option>\n"
+           "<option value=\"6\">(UTC-8:00) Los Angeles</option>\n"
+           "<option value=\"7\">(UTC-7:00) Denver, Colorado</option>\n"
+           "<option value=\"8\">(UTC-7:00) US, Phoenix, Arizona</option>\n"
+           "<option value=\"9\">(UTC-6:00) US, Chicago, Illinois</option>\n"
+           "<option value=\"10\">(UTC-5:00) US, New York</option>\n"
+           "<option value=\"11\">(UTC-3:00) Argentina</option>\n"
+           "<option value=\"12\">(UTC-2:30) Newfoundland</option>\n"
+           "<option value=\"13\">(UTC-2:00) Greenland</option>\n"
+           "<option value=\"14\">(UTC-1:00) Cabo Verde</option>\n"
+           "<option value=\"15\">(UTC+0:00) Iceland</option>\n"
+           "<option value=\"16\">(UTC+1:00) UK</option>\n"
+           "<option value=\"17\">(UTC+2:00) Germany</option>\n"
+           "<option value=\"18\">(UTC+3:00) Greece</option>\n"
+           "<option value=\"19\">(UTC+4:00) Azerbaijan</option>\n"
+           "<option value=\"20\">(UTC+4:30) Iran</option>\n"
+           "<option value=\"21\">(UTC+5:00) Pakistan</option>\n"
+           "<option value=\"22\">(UTC+5:30) India</option>\n"
+           "<option value=\"23\">(UTC+5:45) Nepal</option>\n"
+           "<option value=\"24\">(UTC+6:00) Bangladesh</option>\n"
+           "<option value=\"25\">(UTC+6:30) Myanmar</option>\n"
+           "<option value=\"26\">(UTC+7:00) Indonesia</option>\n"
+           "<option value=\"27\">(UTC+8:00) China</option>\n"
+           "<option value=\"28\">(UTC+8:45) Western Australia</option>\n"
+           "<option value=\"29\">(UTC+9:00) Japan</option>\n"
+           "<option value=\"30\">(UTC+9:30) Central Australia</option>\n"
+           "<option value=\"31\">(UTC+10:00) Eastern Australia</option>\n"
+           "<option value=\"32\">(UTC+10:30) Lord Howe Island</option>\n"
+           "<option value=\"33\">(UTC+11:00) Solomon Islands</option>\n"
+           "<option value=\"34\">(UTC+12:00) New Zealand</option>\n"
+           "<option value=\"35\">(UTC+12:45) Chatham Islands</option>\n"
+           "<option value=\"36\">(UTC+13:00) Tonga</option>\n"
+           "<option value=\"37\">(UTC+14:00) Christmas Island</option>"
            "  </select>\n"
            "  <p></p>\n"
            "  <input class=\"\" type=\"submit\" value=\"Save\"></input>\n"
@@ -558,5 +503,3 @@ void LEDOn() {
 void LEDOff() {
   digitalWrite(LED_BUILTIN,  LOW);
 }
-
-//TODO: wifiManager.setSaveConnect(false) to disable connect on save in config portal
