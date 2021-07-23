@@ -17,7 +17,7 @@ const int digit3_PIN = 16;
 const int digit4_PIN = 14;
 const int COLON_PIN = 10;
 const boolean militaryTime = false;
-const int digitUpdateTime = 50;//The higher this number is, the slower the display will refresh. If it is too low you may see a ghost of other numbers on the display. If too high, you will see flicker.
+const int digitUpdateTime = 300;//The higher this number is, the slower the display will refresh. If it is too low you may see a ghost of other numbers on the display. If too high, you will see flicker.
 
 // — System Varibles — System will change the variables as it is running
 byte currentMode = 0;
@@ -55,6 +55,18 @@ const byte num[] = {
   B11100000, // Seven
   B11111110, // Eight
   B11100110, // Nine
+  B11111101, // Zero w/ Dot  //10
+  B01100001, // One w/ Dot   //11
+  B11011011, // Two w/ Dot   //12
+  B11110011, // Three w/ Dot //13
+  B01100111, // Four w/ Dot  //14
+  B10110111, // Five w/ Dot  //15
+  B10111111, // Six w/ Dot   //16
+  B11100001, // Seven w/ Dot //17
+  B11111111, // Eight w/ Dot //18
+  B11100111, // Nine w/ Dot  //19
+  B00000000, // Nothing      //20
+  B00000001, // Dot Only     //21
 };
 
 // — System Modes —
@@ -119,17 +131,24 @@ void setup() {
 }
 
 void loop() {
-  if (blinkInterval != 0 && (millis() - lastBlink >= blinkInterval)) {
-    LEDToggle();
-    lastBlink = millis();
+  const unsigned long currentMS = millis();
+
+  if (currentMS < oldTime) { //Only true on overflow
+    oldTime = 0;
+    currentTime = 0;
+  } else {
+    oldTime = currentTime;
+    currentTime = currentMS;
   }
 
-  // — Delta Time — Time since the last loop
-  oldTime = currentTime;
-  currentTime = millis();
-  const unsigned long deltaTime = currentTime - oldTime;
+  const unsigned long deltaTime = currentTime - oldTime; //Time since the last loop
 
-  if (turnOffLightTime != 0 && millis() > turnOffLightTime) {
+  if (blinkInterval != 0 && (currentMS - lastBlink >= blinkInterval)) {
+    LEDToggle();
+    lastBlink = currentMS;
+  }
+
+  if (turnOffLightTime != 0 && currentMS > turnOffLightTime) {
     LEDOff();
   }
 
@@ -316,18 +335,29 @@ void loop() {
     }
     else if (currentMode == MODE_NORMAL) {
       events(); //Updates time
-      /*if (timeStatus() != 0 && (millis() - lastTimeMessageSent > 2000)) {
+      /*if (timeStatus() != 0 && (millis() - lastTimeMessageSent > 5000)) {
         lastTimeMessageSent = millis();
 
         //Serial.println("Epoch Time: " + String(now()));
 
         //Serial.println(String(time_timezone.hourFormat12()) + ":" + String(time_timezone.minute()) + ":" + String(time_timezone.second()) + " " + String((time_timezone.isAM() ? "AM" : "PM")));
-        digitUpdateTime+=100;
-        Serial.print("Current Delay: "); Serial.println(digitUpdateTime);
+        //digitUpdateTime += 100;
+        //Serial.print("Current Delay: "); Serial.println(digitUpdateTime);
       }*/
+
       const int h = militaryTime ? time_timezone.hour() : time_timezone.hourFormat12();
-      if (micros() - lastDigitUpdateTime >= digitUpdateTime) {
-        lastDigitUpdateTime = micros();
+
+      unsigned long currentMicroS = micros();
+      if (currentMicroS < lastDigitUpdateTime) { //Only true on overflow
+        lastDigitUpdateTime = 0;
+        currentMicroS = 0;
+      } else {
+        lastDigitUpdateTime = currentMicroS;
+        currentMicroS = currentMS;
+      }
+
+      if (currentMicroS - lastDigitUpdateTime >= digitUpdateTime) {
+        lastDigitUpdateTime = currentMicroS;
         if (currentDigit == 1) {
           ShowDigit((h / 10U) % 10);
           SetDigit(1);
