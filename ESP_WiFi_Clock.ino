@@ -8,6 +8,16 @@
 
 // — Settings —
 const int MODE_PIN = 0; //Pin Used as trigger a mode change
+const int CLOCK_PIN = 15; //Digital Pin! NOT CLK PIN!
+const int LATCH_PIN = 13;
+const int DATA_PIN  = 12;
+const int digit1_PIN = 5;
+const int digit2_PIN = 4;
+const int digit3_PIN = 16;
+const int digit4_PIN = 14;
+const int COLON_PIN = 10;
+const boolean militaryTime = false;
+const int digitUpdateTime = 3200;//The higher this number is, the slower the display will refresh. If it is too low you may see a ghost of other numbers on the display. If too high, you will see flicker.
 
 // — System Varibles — System will change the variables as it is running
 byte currentMode = 0;
@@ -22,8 +32,8 @@ boolean triedConnectingToWifi = false;
 boolean wifiPortalRunning = false;
 boolean clientIsConnected = true;
 unsigned long lastTimeMessageSent = 0;
-
-// — Global Parameters —
+unsigned int currentDigit = 1;
+unsigned long lastDigitUpdateTime = 0;
 
 // — Network Parameters —
 ESP8266WebServer server(80); //Create instance of WebServer on port 80
@@ -34,10 +44,21 @@ String esp_ssid;
 // — Time Parameters —
 const String timezones[] = {"", "AOE12", "NUT11", "HST11HDT,M3.2.0/2:00:00,M11.1.0/2:00:00", "MART9:30,M3.2.0/2:00:00,M11.1.0/2:00:00", "ASKT9AKDT,M3.2.0/2:00:00,M11.1.0/2:00:00", "PST8PDT,M3.2.0/2:00:00,M11.1.0/2:00:00", "MST7MDT,M3.2.0/2:00:00,M11.1.0/2:00:00", "MST7", "CST6CDT,M3.2.0/2:00:00,M11.1.0/2:00:00", "EST5EDT,M3.2.0/2:00:00,M11.1.0/2:00:00", "ART3", "NDT3:30NST,M3.2.0/2:00:00,M11.1.0/2:00:00", "WGST3WGT,M3.2.0/2:00:00,M11.1.0/2:00:00", "CVT1", "GMT", "0GMT,M3.2.0/2:00:00,M11.1.0/2:00:00", "CEST-1CET,M3.2.0/2:00:00,M11.1.0/2:00:00", "MSK-3", "GST-4", "RDT-3:30IRST,M3.2.0/2:00:00,M11.1.0/2:00:00", "UZT-5", "IST-5:30", "NPT-5:45", "BST-6", "MMT-6:30", "WIB-7", "CST-8", "ACWST-8:45", "JST-9", "ACST-8:30ACDT,M3.2.0/2:00:00,M11.1.0/2:00:00", "AEST-9AEDT,M3.2.0/2:00:00,M11.1.0/2:00:00", "LHST-9:30LHDT,M3.2.0/2:00:00,M11.1.0/2:00:00", "SBT-11", "ANAT-12", "CHAST-11:45CHADT,M3.2.0/2:00:00,M11.1.0/2:00:00", "TOT-12TOST,M3.2.0/2:00:00,M11.1.0/2:00:00", "LINT-14"};
 Timezone time_timezone;
-//WiFiUDP ntpUDP; //Opens a UDP Port
-//NTPClient timeClient = NTPClient(ntpUDP, "pool.ntp.org"); //Creates a instance of NTPClient to get the time.
+const byte num[] = {
+  B11111100, // Zero
+  B01100000, // One
+  B11011010, // Two
+  B11110010, // Three
+  B01100110, // Four
+  B10110110, // Five
+  B10111110, // Six
+  B11100000, // Seven
+  B11111110, // Eight
+  B11100110, // Nine
+};
 
 // — System Modes —
+const short totalModes = 3; //How many modes are there?
 const short MODE_NORMAL     = 0;
 const short MODE_SETTINGS   = 1;
 const short MODE_WIFI_SETUP = 2;
@@ -63,9 +84,35 @@ void setup() {
   EEPROM.begin(512);
   currentMode = EEPROM.read(EEPROM_Mode);
 
+  if (currentMode >= totalModes) {
+    EEPROM.write(EEPROM_Mode, MODE_NORMAL);
+    EEPROM.commit();
+    currentMode = MODE_NORMAL;
+  }
+
   // — Setup Pins —
   pinMode(MODE_PIN, INPUT);
   pinMode(LED_BUILTIN, OUTPUT);
+
+  pinMode(LATCH_PIN, OUTPUT);
+  pinMode(CLOCK_PIN, OUTPUT);
+  pinMode(DATA_PIN, OUTPUT);
+
+  pinMode(digit1_PIN, OUTPUT);
+  pinMode(digit2_PIN, OUTPUT);
+  pinMode(digit3_PIN, OUTPUT);
+  pinMode(digit4_PIN, OUTPUT);
+  pinMode(COLON_PIN, OUTPUT);
+
+  if (currentMode == MODE_NORMAL) {
+    digitalWrite(COLON_PIN, HIGH);
+  }
+  else {
+    digitalWrite(LATCH_PIN, LOW);
+    shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, 0);
+    digitalWrite(LATCH_PIN, HIGH);
+    digitalWrite(COLON_PIN, LOW);
+  }
 }
 
 void loop() {
@@ -202,7 +249,7 @@ void loop() {
     else if (currentMode == MODE_WIFI_SETUP) {
       if (wifiPortalRunning) {
         MDNS.update();
-        
+
         if (WiFi.softAPgetStationNum() == 0) {
           if (clientIsConnected) {
             clientIsConnected = false;
@@ -216,7 +263,7 @@ void loop() {
             LEDOn();
           }
         }
-        
+
         if (wifiManager.process()) { //True when saved
           Serial.println("WiFi Config Finished");
 
@@ -269,7 +316,7 @@ void loop() {
       if (timeStatus() != 0 && (millis() - lastTimeMessageSent > 1000)) {
         lastTimeMessageSent = millis();
 
-        Serial.println("Epoch Time: " + String(now()));
+        //Serial.println("Epoch Time: " + String(now()));
         /*
           Serial.print(timeClient.getHours());
           Serial.print(":");
@@ -279,7 +326,39 @@ void loop() {
         */
 
         Serial.println(String(time_timezone.hourFormat12()) + ":" + String(time_timezone.minute()) + ":" + String(time_timezone.second()) + " " + String((time_timezone.isAM() ? "AM" : "PM")));
+      }
+      const int h = militaryTime ? time_timezone.hour() : time_timezone.hourFormat12();
+      if (micros() - lastDigitUpdateTime >= digitUpdateTime) {
+        lastDigitUpdateTime = micros();
 
+        if (currentDigit == 1) {
+          SetDigit(1);
+          digitalWrite(LATCH_PIN, LOW);
+          shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, num[(h / 10U) % 10]);
+          digitalWrite(LATCH_PIN, HIGH);
+          currentDigit = 2;
+        }
+        else if (currentDigit == 2) {
+          SetDigit(2);
+          digitalWrite(LATCH_PIN, LOW);
+          shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, num[h % 10]);
+          digitalWrite(LATCH_PIN, HIGH);
+          currentDigit = 3;
+        }
+        else if (currentDigit == 3) {
+          SetDigit(3);
+          digitalWrite(LATCH_PIN, LOW);
+          shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, num[(time_timezone.minute() / 10U) % 10]);
+          digitalWrite(LATCH_PIN, HIGH);
+          currentDigit = 4;
+        }
+        else if (currentDigit == 4) {
+          SetDigit(4);
+          digitalWrite(LATCH_PIN, LOW);
+          shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, num[time_timezone.minute() % 10]);
+          digitalWrite(LATCH_PIN, HIGH);
+          currentDigit = 1;
+        }
       }
     }
     //Serial.println("Everything is ready!!!");
@@ -504,7 +583,9 @@ String HTML_Submit() {
 }
 
 void LEDToggle() {
-  digitalWrite(LED_BUILTIN,  !digitalRead(LED_BUILTIN));
+  const int set = !digitalRead(LED_BUILTIN);
+  digitalWrite(LED_BUILTIN, set);
+  digitalWrite(COLON_PIN, set);
 }
 
 void LEDOffIn(unsigned long ms) { //Turn off the LED in x amount of milliseconds
@@ -512,9 +593,18 @@ void LEDOffIn(unsigned long ms) { //Turn off the LED in x amount of milliseconds
 }
 
 void LEDOn() {
-  digitalWrite(LED_BUILTIN,  HIGH);
+  digitalWrite(LED_BUILTIN, HIGH);
+  digitalWrite(COLON_PIN, HIGH);
 }
 
 void LEDOff() {
-  digitalWrite(LED_BUILTIN,  LOW);
+  digitalWrite(LED_BUILTIN, LOW);
+  digitalWrite(COLON_PIN, LOW);
+}
+
+void SetDigit(int d) {
+  digitalWrite(digit1_PIN, d != 1);
+  digitalWrite(digit2_PIN, d != 2);
+  digitalWrite(digit3_PIN, d != 3);
+  digitalWrite(digit4_PIN, d != 4);
 }
