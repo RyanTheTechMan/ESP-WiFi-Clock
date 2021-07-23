@@ -17,7 +17,7 @@ const int digit3_PIN = 16;
 const int digit4_PIN = 14;
 const int COLON_PIN = 10;
 const boolean militaryTime = false;
-const int digitUpdateTime = 3200;//The higher this number is, the slower the display will refresh. If it is too low you may see a ghost of other numbers on the display. If too high, you will see flicker.
+const int digitUpdateTime = 50;//The higher this number is, the slower the display will refresh. If it is too low you may see a ghost of other numbers on the display. If too high, you will see flicker.
 
 // — System Varibles — System will change the variables as it is running
 byte currentMode = 0;
@@ -105,6 +105,9 @@ void setup() {
   pinMode(COLON_PIN, OUTPUT);
 
   if (currentMode == MODE_NORMAL) {
+    digitalWrite(LATCH_PIN, LOW);
+    shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, num[8]);
+    digitalWrite(LATCH_PIN, HIGH);
     digitalWrite(COLON_PIN, HIGH);
   }
   else {
@@ -313,50 +316,36 @@ void loop() {
     }
     else if (currentMode == MODE_NORMAL) {
       events(); //Updates time
-      if (timeStatus() != 0 && (millis() - lastTimeMessageSent > 1000)) {
+      /*if (timeStatus() != 0 && (millis() - lastTimeMessageSent > 2000)) {
         lastTimeMessageSent = millis();
 
         //Serial.println("Epoch Time: " + String(now()));
-        /*
-          Serial.print(timeClient.getHours());
-          Serial.print(":");
-          Serial.print(timeClient.getMinutes());
-          Serial.print(":");
-          Serial.println(timeClient.getSeconds());
-        */
 
-        Serial.println(String(time_timezone.hourFormat12()) + ":" + String(time_timezone.minute()) + ":" + String(time_timezone.second()) + " " + String((time_timezone.isAM() ? "AM" : "PM")));
-      }
+        //Serial.println(String(time_timezone.hourFormat12()) + ":" + String(time_timezone.minute()) + ":" + String(time_timezone.second()) + " " + String((time_timezone.isAM() ? "AM" : "PM")));
+        digitUpdateTime+=100;
+        Serial.print("Current Delay: "); Serial.println(digitUpdateTime);
+      }*/
       const int h = militaryTime ? time_timezone.hour() : time_timezone.hourFormat12();
       if (micros() - lastDigitUpdateTime >= digitUpdateTime) {
         lastDigitUpdateTime = micros();
-
         if (currentDigit == 1) {
+          ShowDigit((h / 10U) % 10);
           SetDigit(1);
-          digitalWrite(LATCH_PIN, LOW);
-          shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, num[(h / 10U) % 10]);
-          digitalWrite(LATCH_PIN, HIGH);
           currentDigit = 2;
         }
         else if (currentDigit == 2) {
+          ShowDigit(h % 10);
           SetDigit(2);
-          digitalWrite(LATCH_PIN, LOW);
-          shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, num[h % 10]);
-          digitalWrite(LATCH_PIN, HIGH);
           currentDigit = 3;
         }
         else if (currentDigit == 3) {
+          ShowDigit((time_timezone.minute() / 10U) % 10);
           SetDigit(3);
-          digitalWrite(LATCH_PIN, LOW);
-          shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, num[(time_timezone.minute() / 10U) % 10]);
-          digitalWrite(LATCH_PIN, HIGH);
           currentDigit = 4;
         }
         else if (currentDigit == 4) {
+          ShowDigit(time_timezone.minute() % 10);
           SetDigit(4);
-          digitalWrite(LATCH_PIN, LOW);
-          shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, num[time_timezone.minute() % 10]);
-          digitalWrite(LATCH_PIN, HIGH);
           currentDigit = 1;
         }
       }
@@ -607,4 +596,10 @@ void SetDigit(int d) {
   digitalWrite(digit2_PIN, d != 2);
   digitalWrite(digit3_PIN, d != 3);
   digitalWrite(digit4_PIN, d != 4);
+}
+
+void ShowDigit(int d) { //0-9
+  digitalWrite(LATCH_PIN, LOW);
+  shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, num[d]);
+  digitalWrite(LATCH_PIN, HIGH);
 }
